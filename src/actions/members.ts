@@ -1,17 +1,20 @@
 "use server";
+import { randomUUID } from "node:crypto";
+import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { revalidatePath } from "next/cache";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { requireModule } from "@/lib/auth/session";
+import { requireModuleEditor } from "@/lib/auth/session";
 import { blockReason } from "@/lib/booking-utils";
 import { toMinor } from "@/lib/finance/currency";
 import {
   COL, auditEntry, createMeta, toSearchName, updateMeta,
 } from "@/lib/firestore/helpers";
 import { memberInputSchema, type MemberInput } from "@/lib/validators/booking";
+import { createInvoiceStorageConfig } from "@/lib/r2/invoice-storage";
 import type { AgeCategory, BookingStatus, PerCategory } from "@/types/models";
 
-type Result = { ok: true } | { ok: false; error: string; duplicate?: boolean };
+type Result = { ok: true; memberId?: string } | { ok: false; error: string; duplicate?: boolean };
 
 class UserError extends Error {}
 function fail(e: unknown): Result {
@@ -26,15 +29,36 @@ type BookingRaw = {
 type MemberRaw = {
   status: "active" | "cancelled"; category: AgeCategory; price: number;
   sourceId: string; sourceName: string; name: string;
+  aadhaarCard?: { objectPath: string } | null;
 };
 
 const bookingDoc = (id: string) => adminDb.collection(COL.bookings).doc(id);
+const MAX_AADHAAR_SIZE = 10 * 1024 * 1024;
+const AADHAAR_TYPES = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+} as const;
 
+function validImageSignature(type: string, bytes: Buffer) {
+  if (type === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (type === "image/png") {
+    return bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  }
+  return type === "image/webp"
+    && bytes.toString("ascii", 0, 4) === "RIFF"
+    && bytes.toString("ascii", 8, 12) === "WEBP";
+}
+
+function isAadhaarContentType(type: string): type is keyof typeof AADHAAR_TYPES {
+  return Object.hasOwn(AADHAAR_TYPES, type);
+}
 
 function memberFields(d: MemberInput) {
   return {
     gender: d.gender,
     category: d.category,
+    dateOfBirth: d.dateOfBirth,
     age: d.age === "" ? null : Number(d.age),
     note: d.note,
   };
@@ -47,7 +71,7 @@ function activeSource(s: FirebaseFirestore.DocumentSnapshot) {
 }
 
 export async function addMember(bookingId: string, input: unknown, force = false): Promise<Result> {
-  const user = await requireModule("bookings"); // staff, manager and admin
+  const user = await requireModuleEditor("bookings");
   const parsed = memberInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -74,7 +98,7 @@ export async function addMember(bookingId: string, input: unknown, force = false
   }
 
   try {
-    await adminDb.runTransaction(async (tx) => {
+    const memberId = await adminDb.runTransaction(async (tx) => {
       const bRef = bookingDoc(bookingId);
       const cRef = d.customerId
         ? adminDb.collection(COL.customers).doc(d.customerId)
@@ -157,18 +181,109 @@ export async function addMember(bookingId: string, input: unknown, force = false
           memberId: mRef.id, customerId: cRef.id, name, category: d.category, price,
         }),
       );
+      return mRef.id;
     });
     revalidatePath("/bookings");
     revalidatePath(`/bookings/${bookingId}`);
     revalidatePath("/customers");
-    return { ok: true };
+    return { ok: true, memberId };
   } catch (e) {
     return fail(e);
   }
 }
 
+export async function uploadMemberAadhaar(
+  bookingId: string,
+  memberId: string,
+  file: File,
+): Promise<Result> {
+  const user = await requireModuleEditor("bookings");
+  if (!(file instanceof File) || file.size === 0 || file.size > MAX_AADHAAR_SIZE) {
+    return { ok: false, error: "Choose an image up to 10 MB." };
+  }
+  if (!isAadhaarContentType(file.type)) {
+    return { ok: false, error: "Use a JPEG, PNG, or WebP Aadhaar card image." };
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  if (!validImageSignature(file.type, bytes)) {
+    return { ok: false, error: "The selected file is not a valid JPEG, PNG, or WebP image." };
+  }
+
+  const bRef = bookingDoc(bookingId);
+  const mRef = bRef.collection("members").doc(memberId);
+  const [bSnap, mSnap] = await Promise.all([bRef.get(), mRef.get()]);
+  if (!bSnap.exists || bSnap.data()?.isDeleted || !mSnap.exists) {
+    return { ok: false, error: "Booking member not found." };
+  }
+  const member = mSnap.data() as MemberRaw;
+  const storage = createInvoiceStorageConfig();
+  if (!storage.ok) return { ok: false, error: storage.error };
+
+  const extension = AADHAAR_TYPES[file.type];
+  const objectPath = `member-aadhaar/${bookingId}/${memberId}/${randomUUID()}.${extension}`;
+  let uploaded = false;
+  try {
+    await storage.client.send(new PutObjectCommand({
+      Bucket: storage.bucketName,
+      Key: objectPath,
+      Body: bytes,
+      ContentType: file.type,
+      CacheControl: "private, no-store",
+      Metadata: { "uploaded-by": user.uid },
+    }));
+    uploaded = true;
+
+    const batch = adminDb.batch();
+    batch.update(mRef, {
+      aadhaarCard: {
+        name: file.name.replace(/[\r\n"]/g, "_").slice(0, 180) || `aadhaar.${extension}`,
+        objectPath,
+        contentType: file.type,
+        size: file.size,
+      },
+      ...updateMeta(user),
+    });
+    batch.set(
+      adminDb.collection(COL.auditLogs).doc(),
+      auditEntry(user, "member.aadhaar.upload", "booking", bookingId, { memberId }),
+    );
+    await batch.commit();
+
+    const oldPath = member.aadhaarCard?.objectPath;
+    if (oldPath?.startsWith(`member-aadhaar/${bookingId}/${memberId}/`)) {
+      try {
+        await storage.client.send(new DeleteObjectCommand({ Bucket: storage.bucketName, Key: oldPath }));
+      } catch (error) {
+        console.error("Previous Aadhaar card cleanup failed:", {
+          name: error instanceof Error ? error.name : "UnknownError",
+        });
+      }
+    }
+
+    revalidatePath(`/bookings/${bookingId}`);
+    return { ok: true };
+  } catch (error) {
+    console.error("Aadhaar card upload failed:", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    if (uploaded) {
+      try {
+        await storage.client.send(new DeleteObjectCommand({ Bucket: storage.bucketName, Key: objectPath }));
+      } catch (cleanupError) {
+        console.error("Orphaned Aadhaar card cleanup failed:", {
+          name: cleanupError instanceof Error ? cleanupError.name : "UnknownError",
+        });
+      }
+    }
+    return { ok: false, error: "Aadhaar card upload failed. Check private R2 storage configuration." };
+  } finally {
+    storage.client.destroy();
+  }
+}
+
 export async function updateMember(bookingId: string, memberId: string, input: unknown): Promise<Result> {
-  const user = await requireModule("bookings");
+  const user = await requireModuleEditor("bookings");
   const parsed = memberInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -228,7 +343,7 @@ export async function updateMember(bookingId: string, memberId: string, input: u
 
 /** Frees the slot but keeps the record. Admin and Manager only. */
 export async function cancelMember(bookingId: string, memberId: string): Promise<Result> {
-  const user = await requireModule("bookings", ["admin", "manager"]);
+  const user = await requireModuleEditor("bookings", ["admin", "manager"]);
 
   try {
     await adminDb.runTransaction(async (tx) => {

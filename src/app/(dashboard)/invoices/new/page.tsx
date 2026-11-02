@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/shared/page-header";
-import { requireUser } from "@/lib/auth/session";
+import { requireModuleEditor } from "@/lib/auth/session";
 import { listBookings } from "@/lib/data/bookings";
 import { getSettings } from "@/lib/settings";
 import { todayIST } from "@/lib/format";
@@ -10,7 +10,7 @@ import type { InvoiceBookingOption } from "@/types/models";
 import { InvoiceForm } from "../invoice-form";
 
 export default async function NewInvoicePage() {
-  await requireUser(["admin", "manager"]);
+  await requireModuleEditor("invoices", ["admin", "manager"]);
   const today = todayIST();
   const [bookings, packages, settings, invoiceNo] = await Promise.all([
     listBookings(),

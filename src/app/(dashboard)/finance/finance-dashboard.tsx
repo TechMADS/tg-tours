@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { ReportPdfButton } from "@/components/shared/report-pdf-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CURRENCIES, formatMoney, type CurrencyCode } from "@/lib/finance/currency";
 import { formatDate } from "@/lib/format";
+import { formatReportAmount } from "@/lib/reports/pdf";
 
 type ReportBooking = {
   id: string;
@@ -43,18 +45,34 @@ type Totals = {
   bookingCount: number;
 };
 
+type Period = "today" | "week" | "month" | "year" | "all-time" | "custom";
+type DateRange = { start: string; end: string };
+
 const day = (value: string) => value.slice(0, 10);
 const within = (value: string, start: string, end: string) =>
   day(value) >= start && day(value) <= end;
 
-function currentMonth(today: string) {
+function periodRange(period: Exclude<Period, "custom">, today: string) {
+  if (period === "all-time") return null;
+
   const date = new Date(`${today}T00:00:00.000Z`);
-  return {
-    start: `${today.slice(0, 7)}-01`,
-    end: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0))
-      .toISOString()
-      .slice(0, 10),
-  };
+  let start: string;
+  switch (period) {
+    case "today":
+      start = today;
+      break;
+    case "week":
+      date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+      start = date.toISOString().slice(0, 10);
+      break;
+    case "month":
+      start = `${today.slice(0, 7)}-01`;
+      break;
+    case "year":
+      start = `${today.slice(0, 4)}-01-01`;
+      break;
+  }
+  return { start, end: today };
 }
 
 function SummaryCard({
@@ -86,16 +104,25 @@ function SummaryCard({
 }
 
 export function FinanceDashboard({ bookings, companyExpenses, today }: Props) {
-  const [range, setRange] = useState(() => currentMonth(today));
-  const validRange = Boolean(range.start && range.end && range.start <= range.end);
-  const selectedBookings = validRange
-    ? bookings.filter((booking) =>
-      booking.status !== "cancelled" && within(booking.travelStart, range.start, range.end),
-    )
-    : [];
-  const selectedCompanyExpenses = validRange
-    ? companyExpenses.filter((expense) => within(expense.date, range.start, range.end))
-    : [];
+  const [period, setPeriod] = useState<Period>("month");
+  const [customRange, setCustomRange] = useState<DateRange>(() => periodRange("month", today)!);
+  const range = period === "custom" ? customRange : periodRange(period, today);
+  const validRange = period !== "custom"
+    || Boolean(range?.start && range.end && range.start <= range.end);
+  const changeDate = (key: keyof DateRange, value: string) => {
+    const currentRange = range ?? { start: "", end: "" };
+    setCustomRange({ ...currentRange, [key]: value });
+    setPeriod("custom");
+  };
+  const isInPeriod = (value: string) =>
+    period === "all-time"
+    || (validRange && range !== null && within(value, range.start, range.end));
+  const selectedBookings = bookings.filter((booking) =>
+    booking.status !== "cancelled" && isInPeriod(booking.travelStart),
+  );
+  const selectedCompanyExpenses = companyExpenses.filter((expense) =>
+    isInPeriod(expense.date),
+  );
   const totalsByCurrency = new Map<CurrencyCode, Totals>();
 
   for (const booking of selectedBookings) {
@@ -130,9 +157,76 @@ export function FinanceDashboard({ bookings, companyExpenses, today }: Props) {
   }
 
   const currencies = Array.from(totalsByCurrency.keys()).sort((a, b) => a.localeCompare(b));
+  const periodLabel = period === "custom"
+    ? `Custom range: ${range?.start || "Any date"} to ${range?.end || "Any date"}`
+    : period === "all-time"
+      ? "All time"
+      : `${period === "week" ? "This week" : period === "month" ? "This month" : period === "year" ? "This year" : "Today"} (${range?.start} to ${range?.end})`;
+  const pdfReport = {
+    title: "Finance report",
+    period: periodLabel,
+    fileName: `finance-${period}`,
+    summary: [
+      ["Non-cancelled bookings", String(selectedBookings.length)],
+      ["Company expenses", String(selectedCompanyExpenses.length)],
+      ["Currencies", currencies.join(", ") || "None"],
+    ] as [string, string][],
+    sections: [
+      ...currencies.map((currency) => {
+        const totals = totalsByCurrency.get(currency)!;
+        const totalExpenses = totals.bookingExpenses + totals.companyExpenses;
+        return {
+          title: `${currency} - ${CURRENCIES[currency].name}`,
+          columns: ["Metric", "Amount"],
+          rows: [
+            ["Booking revenue", formatReportAmount(totals.revenue, currency)],
+            ["Booking expenses", totals.bookingExpensesUnavailable ? "Unavailable" : formatReportAmount(totals.bookingExpenses, currency)],
+            ["Company expenses", formatReportAmount(totals.companyExpenses, currency)],
+            ["Total expenses", totals.bookingExpensesUnavailable ? "Unavailable" : formatReportAmount(totalExpenses, currency)],
+            ["Profit", totals.bookingExpensesUnavailable ? "Unavailable" : formatReportAmount(totals.revenue - totalExpenses, currency)],
+          ],
+        };
+      }),
+      {
+        title: "Bookings in this period",
+        columns: ["Booking No.", "Booking", "Travel date", "Currency", "Revenue", "Expenses", "Profit"],
+        rows: selectedBookings.map((booking) => {
+          const bookingExpense = booking.packageCost === null || booking.bookingExpenses === null
+            ? null
+            : booking.packageCost + booking.bookingExpenses;
+          return [
+            booking.bookingNo,
+            booking.title,
+            formatDate(booking.travelStart),
+            booking.currency,
+            formatReportAmount(booking.revenue, booking.currency),
+            bookingExpense === null ? "Unavailable" : formatReportAmount(bookingExpense, booking.currency),
+            bookingExpense === null ? "Unavailable" : formatReportAmount(booking.revenue - bookingExpense, booking.currency),
+          ];
+        }),
+      },
+      {
+        title: "Company expenses in this period",
+        columns: ["Date", "Description", "Category", "Payee", "Currency", "Amount"],
+        rows: selectedCompanyExpenses.map((expense) => [
+          formatDate(expense.date),
+          expense.description,
+          expense.category,
+          expense.payee,
+          expense.currency,
+          formatReportAmount(expense.amount, expense.currency),
+        ]),
+      },
+    ],
+  };
 
   return (
     <div className="space-y-6">
+      {validRange && (
+        <div className="flex justify-end">
+          <ReportPdfButton report={pdfReport} />
+        </div>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Reporting period</CardTitle>
@@ -141,27 +235,45 @@ export function FinanceDashboard({ bookings, companyExpenses, today }: Props) {
             Cancelled bookings are excluded and currency totals stay separate.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="finance-start">From</Label>
-            <Input
-              id="finance-start"
-              type="date"
-              value={range.start}
-              onChange={(event) => setRange((current) => ({ ...current, start: event.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="finance-end">To</Label>
-            <Input
-              id="finance-end"
-              type="date"
-              value={range.end}
-              onChange={(event) => setRange((current) => ({ ...current, end: event.target.value }))}
-            />
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="finance-period">Period</Label>
+              <select
+                id="finance-period"
+                value={period}
+                onChange={(event) => setPeriod(event.target.value as Period)}
+                className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+              >
+                <option value="today">Today</option>
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+                <option value="year">This year</option>
+                <option value="all-time">All time</option>
+                <option value="custom">Custom range</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="finance-start">From</Label>
+              <Input
+                id="finance-start"
+                type="date"
+                value={range?.start ?? ""}
+                onChange={(event) => changeDate("start", event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="finance-end">To</Label>
+              <Input
+                id="finance-end"
+                type="date"
+                value={range?.end ?? ""}
+                onChange={(event) => changeDate("end", event.target.value)}
+              />
+            </div>
           </div>
           {!validRange && (
-            <p className="text-destructive text-sm sm:col-span-2">Choose a valid date range.</p>
+            <p className="text-destructive text-sm">Choose a valid date range.</p>
           )}
         </CardContent>
       </Card>

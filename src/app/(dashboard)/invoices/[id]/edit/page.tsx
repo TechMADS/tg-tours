@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
-import { requireUser } from "@/lib/auth/session";
+import { requireModuleEditor } from "@/lib/auth/session";
 import { getInvoice } from "@/lib/data/invoices";
 import { listBookings } from "@/lib/data/bookings";
 import { listPackages } from "@/lib/data/packages";
@@ -15,7 +15,7 @@ export default async function EditInvoicePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser(["admin", "manager"]);
+  await requireModuleEditor("invoices", ["admin", "manager"]);
   const { id } = await params;
   const [invoice, bookings, packages, settings] = await Promise.all([
     getInvoice(id),

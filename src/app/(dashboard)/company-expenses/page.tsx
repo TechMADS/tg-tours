@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { requireModule } from "@/lib/auth/session";
+import { canManageAssignedModules } from "@/types/roles";
 import { listExpenses } from "@/lib/data/expenses";
 import { todayIST } from "@/lib/format";
 import { CompanyExpensesDashboard } from "./company-expenses-dashboard";
@@ -17,7 +18,7 @@ export default async function CompanyExpensesPage() {
       <CompanyExpensesDashboard
         expenses={expenses}
         today={todayIST()}
-        canManage={user.role === "admin" || user.role === "manager"}
+        canManage={canManageAssignedModules(user)}
       />
     </>
   );

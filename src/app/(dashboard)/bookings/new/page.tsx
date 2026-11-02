@@ -1,11 +1,11 @@
 import { PageHeader } from "@/components/shared/page-header";
-import { requireUser } from "@/lib/auth/session";
+import { requireModuleEditor } from "@/lib/auth/session";
 import { listActivePackages } from "@/lib/data/packages";
 import { todayIST } from "@/lib/format";
 import { BookingForm } from "../booking-form";
 
 export default async function NewBookingPage() {
-  await requireUser(["admin", "manager"]);
+  await requireModuleEditor("bookings", ["admin", "manager"]);
   const packages = await listActivePackages();
 
   return (

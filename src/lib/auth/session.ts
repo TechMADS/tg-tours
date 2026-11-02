@@ -4,7 +4,14 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { adminAuth } from "@/lib/firebase/admin";
 import { canAccessModule, getDefaultPath } from "@/components/layout/nav-items";
-import { isModuleKey, ROLES, type ModuleKey, type Role, type SessionUser } from "@/types/roles";
+import {
+  canEditAssignedModules,
+  isModuleKey,
+  ROLES,
+  type ModuleKey,
+  type Role,
+  type SessionUser,
+} from "@/types/roles";
 
 export const SESSION_COOKIE = "adn_session";
 export const SESSION_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
@@ -29,6 +36,9 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
       name: (decoded.name as string | undefined) ?? decoded.email ?? "User",
       role,
       ...(modules ? { modules } : {}),
+      ...(role === "employee"
+        ? { accessMode: decoded.accessMode === "editor" ? "editor" as const : "viewer" as const }
+        : {}),
     };
   } catch {
     return null;
@@ -47,5 +57,16 @@ export async function requireUser(allowed?: Role[]): Promise<SessionUser> {
 export async function requireModule(module: ModuleKey, allowed?: Role[]): Promise<SessionUser> {
   const user = await requireUser(allowed);
   if (!canAccessModule(user, module)) redirect(getDefaultPath(user));
+  return user;
+}
+
+/** Allows employees with Editor access, while preserving optional role restrictions for other roles. */
+export async function requireModuleEditor(module: ModuleKey, allowed?: Role[]): Promise<SessionUser> {
+  const user = await requireModule(module);
+  if (user.role === "employee") {
+    if (!canEditAssignedModules(user)) redirect(getDefaultPath(user));
+  } else if (allowed && !allowed.includes(user.role)) {
+    redirect("/");
+  }
   return user;
 }

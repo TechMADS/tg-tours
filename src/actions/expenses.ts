@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { revalidatePath } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
-import { requireModule } from "@/lib/auth/session";
+import { requireModuleEditor } from "@/lib/auth/session";
 import { buildMoneyEntry } from "@/lib/finance/fx";
 import { toMinor } from "@/lib/finance/currency";
 import { COL, auditEntry, createMeta, deleteMeta } from "@/lib/firestore/helpers";
@@ -42,7 +42,7 @@ function hasValidReceiptSignature(type: string, bytes: Buffer) {
 }
 
 export async function createExpense(formData: FormData): Promise<Result> {
-  const user = await requireModule("finance", MANAGE);
+  const user = await requireModuleEditor("finance", MANAGE);
   const parsed = expenseInputSchema.safeParse({
     date: formData.get("date"),
     description: formData.get("description"),
@@ -183,7 +183,7 @@ export async function createExpense(formData: FormData): Promise<Result> {
 }
 
 export async function deleteExpense(id: string): Promise<Result> {
-  const user = await requireModule("finance", MANAGE);
+  const user = await requireModuleEditor("finance", MANAGE);
   const expense = await getExpense(id);
   if (!expense) return { ok: false, error: "Expense not found" };
 

@@ -1,12 +1,25 @@
+import Image from "next/image";
+
 export function Brand() {
   return (
-    <div className="flex items-center gap-3">
-      <div className="bg-brand-gradient text-primary-foreground flex size-10 items-center justify-center rounded-lg text-sm font-extrabold">
-        ADN
+    <div className="w-full">
+      <div className="dark:hidden">
+        <Image
+          src="/adn-logo-light.png"
+          alt="ADN Adventures"
+          width={655}
+          height={390}
+          className="h-auto w-full max-w-[184px] object-contain"
+        />
       </div>
-      <div className="leading-tight">
-        <p className="font-semibold">ADN Adventures</p>
-        <p className="text-muted-foreground text-[11px]">Admin Panel</p>
+      <div className="hidden dark:block">
+        <Image
+          src="/adn-logo-dark.png"
+          alt="ADN Adventures"
+          width={1318}
+          height={768}
+          className="h-auto w-full max-w-[184px] object-contain"
+        />
       </div>
     </div>
   );

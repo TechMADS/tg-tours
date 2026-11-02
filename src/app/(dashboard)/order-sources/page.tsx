@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { requireModule } from "@/lib/auth/session";
+import { canManageAssignedModules } from "@/types/roles";
 import { listOrderSources } from "@/lib/data/order-sources";
 import { OrderSourcesTable } from "./order-sources-table";
 
@@ -15,7 +16,7 @@ export default async function OrderSourcesPage() {
       />
       <OrderSourcesTable
         data={sources}
-        canManage={user.role === "admin" || user.role === "manager"}
+        canManage={canManageAssignedModules(user)}
       />
     </>
   );

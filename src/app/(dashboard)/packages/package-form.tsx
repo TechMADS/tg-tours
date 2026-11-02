@@ -434,9 +434,9 @@ export function PackageForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="cost">Default package cost per booking</Label>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_5rem] gap-3">
                 <Input id="cost" type="number" step="0.01" min={0} {...register("cost", { valueAsNumber: true })} />
-                <select id="costCurrency" className={selectClass} {...register("costCurrency")}>
+                <select id="costCurrency" className={`${selectClass} min-w-0 px-1`} {...register("costCurrency")}>
                   {CURRENCY_CODES.map((code) => (
                     <option key={code} value={code}>{code}</option>
                   ))}

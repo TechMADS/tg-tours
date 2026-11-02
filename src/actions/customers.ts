@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
-import { requireModule } from "@/lib/auth/session";
+import { requireModule, requireModuleEditor } from "@/lib/auth/session";
 import { listCustomersPage } from "@/lib/data/customers";
 import {
   COL, auditEntry, createMeta, deleteMeta, toSearchName, updateMeta,
@@ -67,7 +67,7 @@ export async function fetchCustomers(query: string, cursor?: string | null) {
 
 /* ---------- create ---------- */
 export async function createCustomer(input: unknown, force = false): Promise<Result> {
-  const user = await requireModule("customers");
+  const user = await requireModuleEditor("customers");
 
   const parsed = customerInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -99,7 +99,7 @@ export async function createCustomer(input: unknown, force = false): Promise<Res
 
 /* ---------- update ---------- */
 export async function updateCustomer(id: string, input: unknown, force = false): Promise<Result> {
-  const user = await requireModule("customers");
+  const user = await requireModuleEditor("customers");
 
   const parsed = customerInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -142,7 +142,7 @@ export async function updateCustomer(id: string, input: unknown, force = false):
 
 /* ---------- delete (soft) ---------- */
 export async function deleteCustomer(id: string): Promise<Result> {
-  const user = await requireModule("customers", [...MANAGEMENT]);
+  const user = await requireModuleEditor("customers", [...MANAGEMENT]);
 
   const ref = adminDb.collection(COL.customers).doc(id);
   const snap = await ref.get();

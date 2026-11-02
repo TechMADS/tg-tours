@@ -111,6 +111,13 @@ export type Member = Meta & {
   searchName: string;
   gender: Gender;
   category: AgeCategory;
+  dateOfBirth?: string;
+  aadhaarCard?: {
+    name: string;
+    objectPath: string;
+    contentType: "image/jpeg" | "image/png" | "image/webp";
+    size: number;
+  } | null;
   age: number | null;
   phone: string;
   sourceId: string;

@@ -18,7 +18,8 @@ S3 API endpoint and cannot be used as the image URL. The public domain preserves
 the existing behavior where package images can be displayed from their saved
 URLs. Never expose the R2 access key or secret in a `NEXT_PUBLIC_` variable.
 
-Invoice attachments use a separate **private** R2 bucket. Set a bucket-scoped
+Invoice attachments, expense receipts, and booking-member Aadhaar images use a
+**private** R2 bucket. Set a bucket-scoped
 R2 API token with object read/write permission for that bucket in server-only
 environment variables:
 
@@ -28,19 +29,24 @@ R2_INVOICE_ACCESS_KEY_ID=
 R2_INVOICE_SECRET_ACCESS_KEY=
 ```
 
-Invoice storage reuses `R2_ACCOUNT_ID` and `R2_ENDPOINT`, but not the package
-image bucket or its public URL. Do not enable public access or configure a
-public domain for the invoice bucket. Downloads are served only through the
-authenticated application route.
+Private document storage reuses `R2_ACCOUNT_ID` and `R2_ENDPOINT`, but not the
+package image bucket or its public URL. Do not enable public access or configure
+a public domain for this bucket. Downloads are served only through authenticated
+application routes. Aadhaar images are limited to JPEG, PNG, or WebP up to 10 MB;
+viewing requires access to the Bookings module and is audit logged.
 
 # Employee access
 
 Admins can create employee email/password accounts in **Settings → Employee
 access**, select one or more sidebar modules, update access later, or disable an
-account. Employees use the existing login page. Module grants are enforced on
-server-rendered pages, server actions, and protected file routes; hiding a
-sidebar link is not the only access check. Employees retain employee-level
-permissions within assigned modules, and Settings remains admin-only.
+account. Assign each employee **Editor** or **Viewer** access: editors can
+change data in their assigned modules, while viewers can only view it.
+Employees use the existing login page. Module grants and edit access are
+enforced on server-rendered pages and server actions; hiding a sidebar link is
+not the only access check. Settings remains admin-only.
+The admin can set or reset an employee password in Settings. Newly set
+credentials are shown only for the current Settings session; passwords are not
+stored in readable form, and an existing password cannot be retrieved.
 
 # Finance
 

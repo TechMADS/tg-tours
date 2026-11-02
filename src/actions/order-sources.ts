@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
-import { requireModule } from "@/lib/auth/session";
+import { requireModuleEditor } from "@/lib/auth/session";
 import {
   COL, auditEntry, createMeta, deleteMeta, toSearchName, updateMeta,
 } from "@/lib/firestore/helpers";
@@ -25,7 +25,7 @@ async function nameTaken(searchName: string, exceptId?: string) {
 }
 
 export async function createOrderSource(input: unknown): Promise<ActionResult> {
-  const user = await requireModule("order-sources", ALLOWED);
+  const user = await requireModuleEditor("order-sources", ALLOWED);
 
   const parsed = orderSourceSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -49,7 +49,7 @@ export async function createOrderSource(input: unknown): Promise<ActionResult> {
 }
 
 export async function updateOrderSource(id: string, input: unknown): Promise<ActionResult> {
-  const user = await requireModule("order-sources", ALLOWED);
+  const user = await requireModuleEditor("order-sources", ALLOWED);
 
   const parsed = orderSourceSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -79,7 +79,7 @@ export async function updateOrderSource(id: string, input: unknown): Promise<Act
 }
 
 export async function deleteOrderSource(id: string): Promise<ActionResult> {
-  const user = await requireModule("order-sources", ALLOWED);
+  const user = await requireModuleEditor("order-sources", ALLOWED);
 
   const ref = adminDb.collection(COL.orderSources).doc(id);
   const snap = await ref.get();
@@ -112,7 +112,7 @@ export async function deleteOrderSource(id: string): Promise<ActionResult> {
 
 /** One-click starter list, only allowed while the list is empty */
 export async function seedOrderSources(): Promise<ActionResult> {
-  const user = await requireModule("order-sources", ALLOWED);
+  const user = await requireModuleEditor("order-sources", ALLOWED);
 
   const existing = await adminDb
     .collection(COL.orderSources)

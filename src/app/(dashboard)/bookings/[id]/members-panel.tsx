@@ -16,17 +16,19 @@ import {
 } from "@/components/ui/table";
 import { CATEGORY_LABEL, GENDER_LABEL, blockReason } from "@/lib/booking-utils";
 import { formatMoney } from "@/lib/finance/currency";
+import { formatDate } from "@/lib/format";
 import type { Booking, Member } from "@/types/models";
 import { MemberDialog } from "./member-dialog";
 import Link from "next/link";
 
 export function MembersPanel({
-    booking, members, sources, canManage,
+    booking, members, sources, canManage, canEdit,
 }: {
     booking: Booking;
     members: Member[];
     sources: { id: string; name: string }[];
     canManage: boolean;
+    canEdit: boolean;
 }) {
     const [q, setQ] = useState("");
     const [open, setOpen] = useState(false);
@@ -44,9 +46,11 @@ export function MembersPanel({
                 <CardTitle>Members ({booking.memberCount})</CardTitle>
                 <div className="flex flex-wrap items-center gap-2">
                     {reason && <span className="text-muted-foreground text-xs">{reason}</span>}
-                    <Button className="w-full sm:w-auto" disabled={!!reason} onClick={() => { setEditing(null); setOpen(true); }}>
-                        <Plus className="mr-2 size-4" /> Add member
-                    </Button>
+                    {canEdit && (
+                        <Button className="w-full sm:w-auto" disabled={!!reason} onClick={() => { setEditing(null); setOpen(true); }}>
+                            <Plus className="mr-2 size-4" /> Add member
+                        </Button>
+                    )}
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -57,13 +61,115 @@ export function MembersPanel({
                     </div>
                 )}
 
-                <div className="overflow-x-auto rounded-lg border">
+                <div className="space-y-3 md:hidden">
+                    {shown.length === 0 ? (
+                        <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">
+                            {members.length === 0 ? "No members yet. Add the first one." : "No members match."}
+                        </div>
+                    ) : shown.map((member) => {
+                        const cancelled = member.status === "cancelled";
+                        return (
+                            <article
+                                key={member.id}
+                                className={`space-y-3 rounded-lg border p-4 ${cancelled ? "opacity-60" : ""}`}
+                            >
+                                <div className="flex min-w-0 items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {member.customerId ? (
+                                                <Link
+                                                    href={`/customers/${member.customerId}`}
+                                                    className={`break-words font-medium ${cancelled ? "line-through" : "hover:underline"}`}
+                                                >
+                                                    {member.name}
+                                                </Link>
+                                            ) : (
+                                                <span className={`break-words font-medium ${cancelled ? "line-through" : ""}`}>
+                                                    {member.name}
+                                                </span>
+                                            )}
+                                            {cancelled && <Badge variant="outline">Cancelled</Badge>}
+                                        </div>
+                                        <p className="mt-1 break-words text-xs text-muted-foreground">
+                                            {GENDER_LABEL[member.gender]} · {CATEGORY_LABEL[member.category]}
+                                            {member.age !== null ? ` · ${member.age}` : ""}
+                                        </p>
+                                    </div>
+                                    {canEdit && !cancelled && !locked && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger
+                                                aria-label={`Actions for ${member.name}`}
+                                                className={buttonVariants({ variant: "ghost", size: "icon" })}
+                                            >
+                                                <MoreHorizontal className="size-4" />
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => { setEditing(member); setOpen(true); }}>
+                                                    <Pencil className="mr-2 size-4" /> Edit
+                                                </DropdownMenuItem>
+                                                {canManage && (
+                                                    <DropdownMenuItem
+                                                        className="text-destructive focus:text-destructive"
+                                                        onClick={() => setCancelling(member)}
+                                                    >
+                                                        <UserMinus className="mr-2 size-4" /> Cancel member
+                                                    </DropdownMenuItem>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
+                                </div>
+                                <dl className="grid min-w-0 grid-cols-2 gap-3 text-sm">
+                                    <div className="min-w-0">
+                                        <dt className="text-xs text-muted-foreground">Date of birth</dt>
+                                        <dd>{member.dateOfBirth ? formatDate(member.dateOfBirth) : "—"}</dd>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <dt className="text-xs text-muted-foreground">Phone</dt>
+                                        <dd className="break-words">{member.phone || "—"}</dd>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <dt className="text-xs text-muted-foreground">Source</dt>
+                                        <dd className="break-words">{member.sourceName}</dd>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <dt className="text-xs text-muted-foreground">Price</dt>
+                                        <dd className="flex flex-wrap items-center gap-1">
+                                            <span>{formatMoney(member.price, booking.currency)}</span>
+                                            {member.priceOverridden && !cancelled && (
+                                                <Badge variant="secondary">Custom</Badge>
+                                            )}
+                                        </dd>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <dt className="text-xs text-muted-foreground">Aadhaar proof</dt>
+                                        <dd>
+                                            {member.aadhaarCard ? (
+                                                <Link
+                                                    href={`/api/bookings/${booking.id}/members/${member.id}/aadhaar`}
+                                                    target="_blank"
+                                                    className="text-primary underline"
+                                                >
+                                                    View proof
+                                                </Link>
+                                            ) : "—"}
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </article>
+                        );
+                    })}
+                </div>
+
+                <div className="hidden overflow-x-auto rounded-lg border md:block">
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Name</TableHead>
                                 <TableHead>Gender</TableHead>
                                 <TableHead>Category</TableHead>
+                                <TableHead>Date of birth</TableHead>
+                                <TableHead>Aadhaar proof</TableHead>
                                 <TableHead>Phone</TableHead>
                                 <TableHead>Source</TableHead>
                                 <TableHead className="text-right">Price</TableHead>
@@ -73,7 +179,7 @@ export function MembersPanel({
                         <TableBody>
                             {shown.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
+                                    <TableCell colSpan={9} className="text-muted-foreground h-24 text-center">
                                         {members.length === 0 ? "No members yet. Add the first one." : "No members match."}
                                     </TableCell>
                                 </TableRow>
@@ -97,6 +203,22 @@ export function MembersPanel({
                                                 {CATEGORY_LABEL[m.category]}
                                                 {m.age !== null && <span className="text-muted-foreground"> · {m.age}</span>}
                                             </TableCell>
+                                            <TableCell>
+                                                {m.dateOfBirth ? formatDate(m.dateOfBirth) : "—"}
+                                            </TableCell>
+                                            <TableCell>
+                                                {m.aadhaarCard ? (
+                                                    <Link
+                                                        href={`/api/bookings/${booking.id}/members/${m.id}/aadhaar`}
+                                                        target="_blank"
+                                                        className="text-primary underline"
+                                                    >
+                                                        View proof
+                                                    </Link>
+                                                ) : (
+                                                    <span className="text-muted-foreground">—</span>
+                                                )}
+                                            </TableCell>
                                             <TableCell>{m.phone || "—"}</TableCell>
                                             <TableCell>{m.sourceName}</TableCell>
                                             <TableCell className="text-right">
@@ -106,7 +228,7 @@ export function MembersPanel({
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                {!cancelled && !locked && (
+                                                {canEdit && !cancelled && !locked && (
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger
                                                             aria-label="Member actions"
@@ -139,7 +261,7 @@ export function MembersPanel({
                 </div>
             </CardContent>
 
-            <MemberDialog
+            {canEdit && <MemberDialog
                 open={open}
                 onOpenChange={setOpen}
                 booking={booking}
@@ -148,7 +270,7 @@ export function MembersPanel({
                 takenIds={members
                     .filter((m) => m.status === "active" && m.customerId)
                     .map((m) => m.customerId as string)}
-            />
+            />}
 
             <ConfirmDialog
                 open={!!cancelling}

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { requireModule } from "@/lib/auth/session";
+import { requireModuleEditor } from "@/lib/auth/session";
 import { calcTotals } from "@/lib/finance/tax";
 import { buildMoneyEntry } from "@/lib/finance/fx";
 import { percentToBps, toMinor } from "@/lib/finance/currency";
@@ -125,7 +125,7 @@ function invoiceYear(issueDate: string) {
 }
 
 export async function createInvoice(input: unknown): Promise<Result> {
-  const user = await requireModule("invoices", MANAGE);
+  const user = await requireModuleEditor("invoices", MANAGE);
   const parsed = invoiceInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const data = parsed.data;
@@ -182,7 +182,7 @@ export async function createInvoice(input: unknown): Promise<Result> {
 }
 
 export async function updateInvoice(id: string, input: unknown): Promise<Result> {
-  const user = await requireModule("invoices", MANAGE);
+  const user = await requireModuleEditor("invoices", MANAGE);
   const parsed = invoiceInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const old = await getInvoice(id);
@@ -266,7 +266,7 @@ export async function updateInvoice(id: string, input: unknown): Promise<Result>
 }
 
 export async function uploadInvoiceDocument(formData: FormData) {
-  const user = await requireModule("invoices", MANAGE);
+  const user = await requireModuleEditor("invoices", MANAGE);
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false as const, error: "Choose a document to upload" };
@@ -308,7 +308,7 @@ export async function uploadInvoiceDocument(formData: FormData) {
 }
 
 export async function deleteInvoice(id: string): Promise<Result> {
-  const user = await requireModule("invoices", MANAGE);
+  const user = await requireModuleEditor("invoices", MANAGE);
   const invoice = await getInvoice(id);
   if (!invoice) return { ok: false, error: "Invoice not found" };
   await adminDb.collection(COL.invoices).doc(id).update({

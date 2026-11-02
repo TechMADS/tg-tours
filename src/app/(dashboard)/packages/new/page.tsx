@@ -1,10 +1,10 @@
 import { PageHeader } from "@/components/shared/page-header";
-import { requireUser } from "@/lib/auth/session";
+import { requireModuleEditor } from "@/lib/auth/session";
 import { getSettings } from "@/lib/settings";
 import { PackageForm } from "../package-form";
 
 export default async function NewPackagePage() {
-  await requireUser(["admin", "manager"]);
+  await requireModuleEditor("packages", ["admin", "manager"]);
   const settings = await getSettings();
 
   return (

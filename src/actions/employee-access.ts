@@ -4,19 +4,28 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { adminAuth } from "@/lib/firebase/admin";
 import { requireUser } from "@/lib/auth/session";
-import { EMPLOYEE_MODULES, isModuleKey, type ModuleKey } from "@/types/roles";
+import {
+  EMPLOYEE_ACCESS_MODES,
+  EMPLOYEE_MODULES,
+  isModuleKey,
+  type EmployeeAccessMode,
+  type ModuleKey,
+} from "@/types/roles";
 
 const modulesSchema = z
   .array(z.enum(EMPLOYEE_MODULES))
   .min(1, "Select at least one module")
   .max(EMPLOYEE_MODULES.length)
   .refine((modules) => new Set(modules).size === modules.length, "Remove duplicate modules");
+const accessModeSchema = z.enum(EMPLOYEE_ACCESS_MODES);
+const employeePasswordSchema = z.string().min(8, "Password must be at least 8 characters").max(128);
 
 const employeeSchema = z.object({
   name: z.string().trim().min(1, "Enter the employee's name").max(100),
   email: z.string().trim().email("Enter a valid email").transform((email) => email.toLowerCase()),
   password: z.string().min(8, "Password must be at least 8 characters").max(128),
   modules: modulesSchema,
+  accessMode: accessModeSchema,
 });
 
 export type EmployeeAccount = {
@@ -24,12 +33,13 @@ export type EmployeeAccount = {
   name: string;
   email: string;
   modules: ModuleKey[];
+  accessMode: EmployeeAccessMode;
   disabled: boolean;
 };
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 type CreateEmployeeResult =
-  | { ok: true; employee: EmployeeAccount }
+  | { ok: true; employee: EmployeeAccount; password: string }
   | { ok: false; error: string };
 
 function errorCode(error: unknown) {
@@ -56,6 +66,7 @@ export async function listEmployeeAccounts(): Promise<EmployeeAccount[]> {
         name: user.displayName ?? "",
         email: user.email ?? "",
         modules,
+        accessMode: user.customClaims.accessMode === "editor" ? "editor" : "viewer",
         disabled: user.disabled,
       });
     }
@@ -88,6 +99,7 @@ export async function createEmployee(input: unknown): Promise<CreateEmployeeResu
     await adminAuth.setCustomUserClaims(created.uid, {
       role: "employee",
       modules: parsed.data.modules,
+      accessMode: parsed.data.accessMode,
     });
   } catch (error) {
     try {
@@ -101,7 +113,6 @@ export async function createEmployee(input: unknown): Promise<CreateEmployeeResu
     throw error;
   }
 
-  revalidatePath("/settings");
   return {
     ok: true,
     employee: {
@@ -109,20 +120,74 @@ export async function createEmployee(input: unknown): Promise<CreateEmployeeResu
       name: created.displayName ?? parsed.data.name,
       email: created.email ?? parsed.data.email,
       modules: parsed.data.modules,
+      accessMode: parsed.data.accessMode,
       disabled: false,
     },
+    password: parsed.data.password,
   };
 }
 
-export async function updateEmployeeModules(
+export async function resetEmployeePassword(
   uid: string,
   input: unknown,
 ): Promise<ActionResult> {
   await requireUser(["admin"]);
   if (!uid || uid.length > 128) return { ok: false, error: "Invalid employee account" };
 
+  const parsedPassword = employeePasswordSchema.safeParse(input);
+  if (!parsedPassword.success) {
+    return { ok: false, error: parsedPassword.error.issues[0].message };
+  }
+
+  const employee = await adminAuth.getUser(uid);
+  if (employee.customClaims?.role !== "employee") {
+    return { ok: false, error: "Employee account not found" };
+  }
+
+  await adminAuth.updateUser(uid, { password: parsedPassword.data });
+  try {
+    await adminAuth.revokeRefreshTokens(uid);
+  } catch (error) {
+    try {
+      await adminAuth.updateUser(uid, { disabled: true });
+    } catch (disableError) {
+      console.error("Could not disable employee after password reset revocation failed:", {
+        uid,
+        code: errorCode(disableError),
+      });
+    }
+    throw error;
+  }
+
+  return { ok: true };
+}
+
+export async function deleteEmployee(uid: string): Promise<ActionResult> {
+  await requireUser(["admin"]);
+  if (!uid || uid.length > 128) return { ok: false, error: "Invalid employee account" };
+
+  const employee = await adminAuth.getUser(uid);
+  if (employee.customClaims?.role !== "employee") {
+    return { ok: false, error: "Employee account not found" };
+  }
+
+  await adminAuth.deleteUser(uid);
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function updateEmployeeModules(
+  uid: string,
+  input: unknown,
+  accessModeInput: unknown,
+): Promise<ActionResult> {
+  await requireUser(["admin"]);
+  if (!uid || uid.length > 128) return { ok: false, error: "Invalid employee account" };
+
   const parsed = modulesSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const parsedAccessMode = accessModeSchema.safeParse(accessModeInput);
+  if (!parsedAccessMode.success) return { ok: false, error: "Choose Editor or Viewer access" };
 
   const employee = await adminAuth.getUser(uid);
   if (employee.customClaims?.role !== "employee") {
@@ -133,6 +198,7 @@ export async function updateEmployeeModules(
     ...employee.customClaims,
     role: "employee",
     modules: parsed.data,
+    accessMode: parsedAccessMode.data,
   });
   try {
     await adminAuth.revokeRefreshTokens(uid);

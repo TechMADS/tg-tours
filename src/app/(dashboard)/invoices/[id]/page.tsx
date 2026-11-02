@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { requireModule } from "@/lib/auth/session";
+import { canManageAssignedModules } from "@/types/roles";
 import { getInvoice } from "@/lib/data/invoices";
 import { fromMinor } from "@/lib/finance/currency";
 import { formatDuration } from "@/lib/format";
@@ -61,7 +62,7 @@ export default async function InvoicePage({
       <PageHeader
         title={invoice.invoiceNo}
         description={`${invoice.customer.name} · ${invoice.tripDestination}`}
-        actions={<InvoiceActions invoice={invoice} canManage={user.role === "admin" || user.role === "manager"} />}
+        actions={<InvoiceActions invoice={invoice} canManage={canManageAssignedModules(user)} />}
       />
       <InvoiceDocument
         values={values}

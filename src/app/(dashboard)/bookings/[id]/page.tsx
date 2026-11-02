@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireModule } from "@/lib/auth/session";
+import { canEditAssignedModules, canManageAssignedModules } from "@/types/roles";
 import { CATEGORY_LABEL, GENDER_LABEL } from "@/lib/booking-utils";
 import { getBooking, listMembers } from "@/lib/data/bookings";
 import { listExpensesForBooking } from "@/lib/data/expenses";
@@ -81,6 +82,7 @@ function BookingProfitability({
 
 export default async function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireModule("bookings");
+  const canManageBookings = canManageAssignedModules(user);
   const { id } = await params;
   const booking = await getBooking(id);
   if (!booking) notFound();
@@ -117,7 +119,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
       <PageHeader
         title={booking.title}
         description={`${booking.bookingNo} · ${booking.packageName} · ${booking.destination}`}
-        actions={user.role === "admin" || user.role === "manager" ? <BookingActions booking={booking} /> : undefined}
+        actions={canManageBookings ? <BookingActions booking={booking} /> : undefined}
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -183,7 +185,8 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
         booking={booking}
         members={members}
         sources={sources.filter((s) => s.active).map((s) => ({ id: s.id, name: s.name }))}
-        canManage={user.role === "admin" || user.role === "manager"}
+        canManage={canManageBookings}
+        canEdit={canEditAssignedModules(user)}
       />
       {(user.role === "admin" || user.role === "manager") && (
         <BookingExpensesPanel

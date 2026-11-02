@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { deletePackage, setPackageStatus } from "@/actions/packages";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable } from "@/components/shared/data-table";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -16,6 +16,7 @@ import {
 import { formatMoney } from "@/lib/finance/currency";
 import { GROUP_LABEL, STATUS_LABEL } from "@/lib/validators/package";
 import { personsLabel } from "@/lib/finance/pricing";
+import { reportBulkDelete, runBulkDelete } from "@/lib/bulk-delete";
 import type { PackageStatus, TravelPackage } from "@/types/models";
 import { StatusBadge } from "./status-badge";
 
@@ -164,6 +165,14 @@ export function PackagesTable({
                     data={data}
                     searchPlaceholder="Search name, destination, status…"
                     toolbar={addButton}
+                    bulkDelete={canManage ? {
+                        getId: (pkg) => pkg.id,
+                        onDelete: async (packages) => {
+                            const result = await runBulkDelete(packages.map((pkg) => pkg.id), deletePackage);
+                            reportBulkDelete(result, "package");
+                            if (result.deletedIds.length > 0) router.refresh();
+                        },
+                    } : undefined}
                 />
             )}
 

@@ -3,6 +3,7 @@ import { Check, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireModule } from "@/lib/auth/session";
+import { canManageAssignedModules } from "@/types/roles";
 import { getPackage } from "@/lib/data/packages";
 import { formatMoney } from "@/lib/finance/currency";
 import { formatDate } from "@/lib/format";
@@ -77,7 +78,7 @@ export default async function PackageDetailPage({ params }: { params: Promise<{ 
                 description={`${pkg.destination} · ${pkg.days}D / ${pkg.nights}N`}
                 actions={
                     <>
-                        {(user.role === "admin" || user.role === "manager") && <PackageActions pkg={pkg} />}
+                        {canManageAssignedModules(user) && <PackageActions pkg={pkg} />}
                     </>
                 }
             />

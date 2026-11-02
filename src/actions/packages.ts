@@ -3,7 +3,7 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { adminDb } from "@/lib/firebase/admin";
-import { requireModule } from "@/lib/auth/session";
+import { requireModuleEditor } from "@/lib/auth/session";
 import { toMinor } from "@/lib/finance/currency";
 import { buildMoneyEntry, type MoneyEntry } from "@/lib/finance/fx";
 import { getSettings } from "@/lib/settings";
@@ -35,7 +35,7 @@ function hasValidImageSignature(type: string, bytes: Buffer) {
 }
 
 export async function uploadPackageImage(formData: FormData) {
-  await requireModule("packages", MANAGE);
+  await requireModuleEditor("packages", MANAGE);
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -157,7 +157,7 @@ async function nameTaken(searchName: string, exceptId?: string) {
 const NEEDS_PRICE = "Set a price above 0 before making a package Active";
 
 export async function createPackage(input: unknown): Promise<Result> {
-  const user = await requireModule("packages", MANAGE);
+  const user = await requireModuleEditor("packages", MANAGE);
 
   const parsed = packageInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -189,7 +189,7 @@ export async function createPackage(input: unknown): Promise<Result> {
 }
 
 export async function updatePackage(id: string, input: unknown): Promise<Result> {
-  const user = await requireModule("packages", MANAGE);
+  const user = await requireModuleEditor("packages", MANAGE);
 
   const parsed = packageInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -239,7 +239,7 @@ export async function updatePackage(id: string, input: unknown): Promise<Result>
 }
 
 export async function setPackageStatus(id: string, status: unknown): Promise<Result> {
-  const user = await requireModule("packages", MANAGE);
+  const user = await requireModuleEditor("packages", MANAGE);
 
   const parsedStatus = packageStatusSchema.safeParse(status);
   if (!parsedStatus.success) return { ok: false, error: "Invalid status" };
@@ -268,7 +268,7 @@ export async function setPackageStatus(id: string, status: unknown): Promise<Res
 }
 
 export async function deletePackage(id: string): Promise<Result> {
-  const user = await requireModule("packages", MANAGE);
+  const user = await requireModuleEditor("packages", MANAGE);
 
   const ref = adminDb.collection(COL.packages).doc(id);
   const snap = await ref.get();

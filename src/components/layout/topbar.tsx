@@ -37,7 +37,7 @@ export function Topbar({ user }: { user: SessionUser }) {
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-72 p-0">
+        <SheetContent side="left" className="w-72 max-w-[calc(100vw-2rem)] p-0">
           <SheetHeader className="p-4">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             <Brand />

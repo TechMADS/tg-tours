@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { requireModule } from "@/lib/auth/session";
+import { requireModuleEditor } from "@/lib/auth/session";
 import { toMinor } from "@/lib/finance/currency";
 import { todayIST } from "@/lib/format";
 import {
@@ -27,7 +27,7 @@ type Raw = {
 };
 
 export async function createBooking(input: unknown): Promise<Result> {
-  const user = await requireModule("bookings", MANAGE);
+  const user = await requireModuleEditor("bookings", MANAGE);
   const parsed = bookingInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -86,7 +86,7 @@ export async function createBooking(input: unknown): Promise<Result> {
 }
 
 export async function updateBooking(id: string, input: unknown): Promise<Result> {
-  const user = await requireModule("bookings", MANAGE);
+  const user = await requireModuleEditor("bookings", MANAGE);
   const parsed = bookingInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -162,7 +162,7 @@ export async function updateBooking(id: string, input: unknown): Promise<Result>
 }
 
 export async function setBookingStatus(id: string, status: BookingStatus): Promise<Result> {
-  const user = await requireModule("bookings", MANAGE);
+  const user = await requireModuleEditor("bookings", MANAGE);
   if (!["open", "closed", "completed", "cancelled"].includes(status)) {
     return { ok: false, error: "Invalid status" };
   }
@@ -189,7 +189,7 @@ export async function setBookingStatus(id: string, status: BookingStatus): Promi
 }
 
 export async function deleteBooking(id: string): Promise<Result> {
-  const user = await requireModule("bookings", MANAGE);
+  const user = await requireModuleEditor("bookings", MANAGE);
   const ref = adminDb.collection(COL.bookings).doc(id);
   const snap = await ref.get();
   const b = snap.data() as Raw | undefined;

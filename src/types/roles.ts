@@ -1,5 +1,7 @@
 export const ROLES = ["admin", "manager", "staff", "employee"] as const;
 export type Role = (typeof ROLES)[number];
+export const EMPLOYEE_ACCESS_MODES = ["editor", "viewer"] as const;
+export type EmployeeAccessMode = (typeof EMPLOYEE_ACCESS_MODES)[number];
 
 export const EMPLOYEE_MODULES = [
   "dashboard",
@@ -23,4 +25,15 @@ export type SessionUser = {
   name: string;
   role: Role;
   modules?: ModuleKey[];
+  accessMode?: EmployeeAccessMode;
 };
+
+export function canEditAssignedModules(user: Pick<SessionUser, "role" | "accessMode">) {
+  return user.role !== "employee" || user.accessMode === "editor";
+}
+
+export function canManageAssignedModules(user: Pick<SessionUser, "role" | "accessMode">) {
+  return user.role === "admin"
+    || user.role === "manager"
+    || (user.role === "employee" && user.accessMode === "editor");
+}

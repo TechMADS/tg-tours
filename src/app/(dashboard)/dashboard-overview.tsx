@@ -4,11 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowDownRight,
-  ArrowUpRight,
   CalendarDays,
   CircleDollarSign,
   Users,
-  Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -208,12 +206,9 @@ function LineChart({
 }
 
 export function DashboardOverview({
-  today,
   months,
   currencies,
   revenue,
-  bookingExpenses,
-  companyExpenses,
   expenses,
   profit,
   unavailable,
@@ -225,15 +220,9 @@ export function DashboardOverview({
 }: Props) {
   const [currency, setCurrency] = useState<CurrencyCode>(currencies[0] ?? "INR");
   const activeBookings = statuses.open + statuses.closed;
-  const currentMonthKey = today.slice(0, 7);
-  const currentMonth = months.find((month) => month.key === currentMonthKey);
   const hasFinancialData = Boolean(revenue[currency] || expenses[currency] || profit[currency]);
   const financialUnavailable = Boolean(unavailable[currency]);
-  const currentMonthUnavailable = Boolean(currentMonth?.unavailable[currency]);
   const money = (value: number | undefined) => formatMoney(value ?? 0, currency);
-  const currentMonthProfit = currentMonth?.unavailable[currency]
-    ? "Unavailable"
-    : money(currentMonth?.profit[currency]);
   const statusTotal = Object.values(statuses).reduce((sum, count) => sum + count, 0);
 
   const financialSeries = [
@@ -286,14 +275,14 @@ export function DashboardOverview({
     <div className="space-y-6">
       <div className={`grid gap-4 sm:grid-cols-2 ${showFinancials ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
         <MetricCard
-          title="Non-cancelled bookings"
+          title="Bookings"
           value={String(bookingCount)}
           detail={`${activeBookings} active · ${statuses.completed} completed`}
           icon={<CalendarDays className="size-4" />}
           accent="bg-teal-500/10 text-teal-700 dark:text-teal-300"
         />
         <MetricCard
-          title="Active travelers"
+          title="Active travellers"
           value={String(activeTravelers)}
           detail="Members in non-cancelled bookings."
           icon={<Users className="size-4" />}
@@ -302,34 +291,25 @@ export function DashboardOverview({
         {showFinancials && (
           <>
             <MetricCard
-              title="Revenue this month"
-              value={money(currentMonth?.revenue[currency])}
-              detail={`All-time revenue: ${money(revenue[currency])}`}
-              icon={<ArrowUpRight className="size-4" />}
+              title="All-time revenue"
+              value={money(revenue[currency])}
+              detail="Across all non-cancelled bookings."
+              icon={<CircleDollarSign className="size-4" />}
               accent="bg-sky-500/10 text-sky-700 dark:text-sky-300"
             />
             <MetricCard
-              title="Booking expenses this month"
-              value={currentMonthUnavailable ? "Unavailable" : money(currentMonth?.bookingExpenses[currency])}
-              detail={`All-time booking expenses: ${financialUnavailable ? "Unavailable" : money(bookingExpenses[currency])}`}
+              title="All-time expenses"
+              value={financialUnavailable ? "Unavailable" : money(expenses[currency])}
+              detail="Booking and company expenses."
               icon={<ArrowDownRight className="size-4" />}
               accent="bg-rose-500/10 text-rose-700 dark:text-rose-300"
             />
             <MetricCard
-              title="Company expenses this month"
-              value={money(currentMonth?.companyExpenses[currency])}
-              detail={`All-time company expenses: ${money(companyExpenses[currency])}`}
-              icon={<Wallet className="size-4" />}
-              accent="bg-amber-500/10 text-amber-700 dark:text-amber-300"
-            />
-            <MetricCard
-              title="Profit this month"
-              value={currentMonthProfit}
-              detail={currentMonth?.unavailable[currency]
-                ? "Some totals need an exchange rate."
-                : `All-time profit: ${money(profit[currency])}`}
+              title="All-time profit"
+              value={financialUnavailable ? "Unavailable" : money(profit[currency])}
+              detail="Revenue minus total expenses."
               icon={<CircleDollarSign className="size-4" />}
-              accent={currentMonth?.profit[currency] !== undefined && currentMonth.profit[currency]! < 0
+              accent={profit[currency] !== undefined && profit[currency]! < 0
                 ? "bg-rose-500/10 text-rose-700 dark:text-rose-300"
                 : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}
             />

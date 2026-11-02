@@ -41,8 +41,8 @@ export function InvoiceDocument({
         data-pdf-page
         className="min-w-0 border bg-white p-5 shadow-sm sm:p-8"
       >
-        <header className="flex min-w-0 items-center gap-4 border-b border-slate-300 pb-4 text-left">
-          <div className="flex w-[clamp(96px,32%,182px)] shrink-0 items-center justify-center">
+        <header className="flex min-w-0 flex-col items-start gap-3 border-b border-slate-300 pb-4 text-left sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex w-28 shrink-0 items-center justify-center sm:w-[clamp(96px,32%,182px)]">
             <Image
               src="/adn-logo.png"
               alt="ADN Adventures logo"
@@ -54,7 +54,7 @@ export function InvoiceDocument({
             />
           </div>
           <div className="min-w-0 break-words">
-            <p className="text-2xl font-bold tracking-wide uppercase">
+            <p className="text-xl font-bold tracking-wide uppercase sm:text-2xl">
               {business.name || "ADN ADVENTURES"}
             </p>
             <p className="text-lg tracking-widest uppercase">
@@ -83,7 +83,7 @@ export function InvoiceDocument({
         </header>
 
         <div className="space-y-2 border-b border-slate-300 py-3 text-sm">
-          <div className="flex justify-between gap-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
             <span>
               Invoice No: <strong>{values.invoiceNo}</strong>
             </span>
@@ -94,7 +94,7 @@ export function InvoiceDocument({
               </strong>
             </span>
           </div>
-          <div className="flex justify-between gap-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
             <span>
               Trip Destination: <strong>{values.tripDestination || "—"}</strong>
             </span>
@@ -171,7 +171,7 @@ export function InvoiceDocument({
                 {values.payments.map((payment, index) => (
                   <li
                     key={`${payment.date}-${index}`}
-                    className="flex justify-between gap-3"
+                    className="flex flex-wrap justify-between gap-x-3 gap-y-1"
                   >
                     <span>
                       Payment {index + 1} ·{" "}
@@ -241,11 +241,11 @@ function InvoiceRow({
 }) {
   return (
     <tr>
-      <th className="w-2/3 border border-slate-300 bg-slate-50 px-3 py-2 text-left font-bold">
+      <th className="w-2/3 break-words border border-slate-300 bg-slate-50 px-3 py-2 text-left font-bold">
         {label}
       </th>
       <td
-        className={`border border-slate-300 px-3 py-2 ${emphasis ? "font-bold text-red-600" : ""}`}
+        className={`break-words border border-slate-300 px-3 py-2 ${emphasis ? "font-bold text-red-600" : ""}`}
       >
         {value}
       </td>

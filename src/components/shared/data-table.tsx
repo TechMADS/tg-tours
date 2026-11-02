@@ -1,14 +1,17 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable, type ColumnDef, type SortingState,
+  getSortedRowModel, useReactTable,
+  type ColumnDef, type RowSelectionState, type SortingState,
 } from "@tanstack/react-table";
 import {
-  ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Search, SearchX,
+  ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Search, SearchX, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { SelectionCheckbox } from "@/components/shared/selection-checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -19,20 +22,59 @@ type Props<T> = {
   searchPlaceholder?: string;
   toolbar?: React.ReactNode; // e.g. the "Add" button
   pageSize?: number;
+  bulkDelete?: {
+    getId: (row: T) => string;
+    onDelete: (rows: T[]) => Promise<void>;
+  };
 };
 
 export function DataTable<T>({
-  columns, data, searchPlaceholder = "Search…", toolbar, pageSize = 10,
+  columns, data, searchPlaceholder = "Search…", toolbar, pageSize = 10, bulkDelete,
 }: Props<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const dataIds = bulkDelete ? data.map((row) => bulkDelete.getId(row)).join("\0") : "";
+
+  useEffect(() => {
+    setRowSelection({});
+  }, [dataIds]);
+
+  const displayedColumns: ColumnDef<T, unknown>[] = bulkDelete
+    ? [
+        {
+          id: "select",
+          enableSorting: false,
+          header: ({ table: currentTable }) => (
+            <SelectionCheckbox
+              checked={currentTable.getIsAllPageRowsSelected()}
+              indeterminate={currentTable.getIsSomePageRowsSelected()}
+              onChange={currentTable.getToggleAllPageRowsSelectedHandler()}
+              label="Select all rows on this page"
+            />
+          ),
+          cell: ({ row }) => (
+            <SelectionCheckbox
+              checked={row.getIsSelected()}
+              onChange={row.getToggleSelectedHandler()}
+              label={`Select row ${row.id}`}
+            />
+          ),
+        },
+        ...columns,
+      ]
+    : columns;
 
   const table = useReactTable({
     data,
-    columns,
-    state: { sorting, globalFilter },
+    columns: displayedColumns,
+    getRowId: bulkDelete ? (row) => bulkDelete.getId(row) : undefined,
+    enableRowSelection: Boolean(bulkDelete),
+    state: { sorting, globalFilter, rowSelection },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -41,6 +83,7 @@ export function DataTable<T>({
   });
 
   const rows = table.getRowModel().rows;
+  const selectedRows = table.getSelectedRowModel().rows.map((row) => row.original);
   const filteredCount = table.getFilteredRowModel().rows.length;
   const pageIndex = table.getState().pagination.pageIndex;
   const activePageSize = table.getState().pagination.pageSize;
@@ -55,7 +98,10 @@ export function DataTable<T>({
           <Input
             type="search"
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            onChange={(e) => {
+              setGlobalFilter(e.target.value);
+              setRowSelection({});
+            }}
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder.replace(/…$/, "")}
             className="pl-9"
@@ -63,6 +109,19 @@ export function DataTable<T>({
         </div>
         {toolbar && <div className="w-full sm:w-auto [&>*]:w-full sm:[&>*]:w-auto">{toolbar}</div>}
       </div>
+      {bulkDelete && selectedRows.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/40 p-3">
+          <span className="text-sm">{selectedRows.length} selected</span>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => setConfirmBulkDelete(true)}
+          >
+            <Trash2 className="mr-2 size-4" />
+            Delete selected
+          </Button>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
         <Table>
@@ -117,7 +176,7 @@ export function DataTable<T>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-48 text-center">
+                <TableCell colSpan={displayedColumns.length} className="h-48 text-center">
                   <div className="flex flex-col items-center justify-center gap-2">
                     {data.length === 0 ? (
                       <>
@@ -177,6 +236,19 @@ export function DataTable<T>({
           </Button>
         </div>
       </div>
+      {bulkDelete && (
+        <ConfirmDialog
+          open={confirmBulkDelete}
+          onOpenChange={setConfirmBulkDelete}
+          title={`Delete ${selectedRows.length} selected record${selectedRows.length === 1 ? "" : "s"}?`}
+          description="Each record will be checked against its existing deletion rules. Records that cannot be deleted will remain unchanged."
+          confirmLabel="Delete selected"
+          onConfirm={async () => {
+            await bulkDelete.onDelete(selectedRows);
+            setRowSelection({});
+          }}
+        />
+      )}
     </div>
   );
 }

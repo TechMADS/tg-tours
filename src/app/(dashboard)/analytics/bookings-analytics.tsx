@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, CalendarDays, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ReportPdfButton } from "@/components/shared/report-pdf-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CURRENCIES, formatMoney, type CurrencyCode } from "@/lib/finance/currency";
 import { formatDate } from "@/lib/format";
+import { formatReportAmount } from "@/lib/reports/pdf";
 import type { BookingStatus } from "@/types/models";
 
 type ReportBooking = {
@@ -44,9 +46,30 @@ const STATUS_STYLES: Record<BookingStatus, string> = {
   cancelled: "bg-rose-500",
 };
 
-function yearRange(today: string) {
-  const year = today.slice(0, 4);
-  return { start: `${year}-01-01`, end: `${year}-12-31` };
+type Period = "today" | "week" | "month" | "year" | "all-time" | "custom";
+type DateRange = { start: string; end: string };
+
+function periodRange(period: Exclude<Period, "custom">, today: string): DateRange | null {
+  if (period === "all-time") return null;
+
+  const date = new Date(`${today}T00:00:00.000Z`);
+  let start: string;
+  switch (period) {
+    case "today":
+      start = today;
+      break;
+    case "week":
+      date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+      start = date.toISOString().slice(0, 10);
+      break;
+    case "month":
+      start = `${today.slice(0, 7)}-01`;
+      break;
+    case "year":
+      start = `${today.slice(0, 4)}-01-01`;
+      break;
+  }
+  return { start, end: today };
 }
 
 function MetricCard({
@@ -75,14 +98,22 @@ function MetricCard({
 }
 
 export function BookingsAnalytics({ bookings, today }: Props) {
-  const initialRange = useMemo(() => yearRange(today), [today]);
-  const [start, setStart] = useState(initialRange.start);
-  const [end, setEnd] = useState(initialRange.end);
-  const validRange = Boolean(start && end && start <= end);
+  const [period, setPeriod] = useState<Period>("month");
+  const [customRange, setCustomRange] = useState<DateRange>(() => periodRange("month", today)!);
+  const range = period === "custom" ? customRange : periodRange(period, today);
+  const validRange = period !== "custom"
+    || Boolean(range?.start && range.end && range.start <= range.end);
+  const changeDate = (key: keyof DateRange, value: string) => {
+    const currentRange = range ?? { start: "", end: "" };
+    setCustomRange({ ...currentRange, [key]: value });
+    setPeriod("custom");
+  };
 
-  const filtered = validRange
-    ? bookings.filter((booking) => booking.travelStart >= start && booking.travelStart <= end)
-    : [];
+  const filtered = bookings.filter((booking) =>
+    period === "all-time"
+    || (validRange && range !== null
+      && booking.travelStart >= range.start && booking.travelStart <= range.end),
+  );
   const statusCounts: Record<BookingStatus, number> = {
     open: 0,
     closed: 0,
@@ -117,9 +148,69 @@ export function BookingsAnalytics({ bookings, today }: Props) {
   const currencies = Array.from(revenueByCurrency.keys()).sort((a, b) => a.localeCompare(b));
   const maxDestinationCount = destinations[0]?.count ?? 0;
   const sortedBookings = [...filtered].sort((a, b) => a.travelStart.localeCompare(b.travelStart));
+  const periodLabel = period === "custom"
+    ? `Custom range: ${range?.start || "Any date"} to ${range?.end || "Any date"}`
+    : period === "all-time"
+      ? "All time"
+      : `${period === "week" ? "This week" : period === "month" ? "This month" : period === "year" ? "This year" : "Today"} (${range?.start} to ${range?.end})`;
+  const pdfReport = {
+    title: "Bookings analytics report",
+    period: periodLabel,
+    fileName: `bookings-analytics-${period}`,
+    summary: [
+      ["Total bookings", String(filtered.length)],
+      ["Open bookings", String(statusCounts.open)],
+      ["Closed bookings", String(statusCounts.closed)],
+      ["Completed bookings", String(statusCounts.completed)],
+      ["Cancelled bookings", String(statusCounts.cancelled)],
+      ["Active travelers", String(members)],
+    ] as [string, string][],
+    sections: [
+      {
+        title: "Revenue by currency",
+        columns: ["Currency", "Revenue"],
+        rows: currencies.map((currency) => [
+          `${currency} - ${CURRENCIES[currency].name}`,
+          formatReportAmount(revenueByCurrency.get(currency)!, currency),
+        ]),
+      },
+      {
+        title: "Booking status",
+        columns: ["Status", "Bookings", "Share"],
+        rows: (["open", "closed", "completed", "cancelled"] as const).map((status) => [
+          STATUS_LABELS[status],
+          String(statusCounts[status]),
+          `${filtered.length ? Math.round((statusCounts[status] / filtered.length) * 100) : 0}%`,
+        ]),
+      },
+      {
+        title: "Top destinations",
+        columns: ["Destination", "Bookings"],
+        rows: destinations.map(({ name, count }) => [name, String(count)]),
+      },
+      {
+        title: "Bookings in this period",
+        columns: ["Booking No.", "Booking", "Destination", "Travel dates", "Status", "Travelers", "Revenue"],
+        rows: sortedBookings.map((booking) => [
+          booking.bookingNo,
+          booking.title,
+          booking.destination || booking.packageName,
+          `${formatDate(booking.travelStart)} - ${formatDate(booking.travelEnd)}`,
+          STATUS_LABELS[booking.status],
+          String(booking.status === "cancelled" ? 0 : booking.memberCount),
+          booking.status === "cancelled" ? "Excluded" : formatReportAmount(booking.totalAmount, booking.currency),
+        ]),
+      },
+    ],
+  };
 
   return (
     <div className="space-y-6">
+      {validRange && (
+        <div className="flex justify-end">
+          <ReportPdfButton report={pdfReport} />
+        </div>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Reporting period</CardTitle>
@@ -127,27 +218,45 @@ export function BookingsAnalytics({ bookings, today }: Props) {
             Bookings are grouped by their travel start date. Revenue and active members exclude cancelled bookings.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="analytics-start">From</Label>
-            <Input
-              id="analytics-start"
-              type="date"
-              value={start}
-              onChange={(event) => setStart(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="analytics-end">To</Label>
-            <Input
-              id="analytics-end"
-              type="date"
-              value={end}
-              onChange={(event) => setEnd(event.target.value)}
-            />
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="analytics-period">Period</Label>
+              <select
+                id="analytics-period"
+                value={period}
+                onChange={(event) => setPeriod(event.target.value as Period)}
+                className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+              >
+                <option value="today">Today</option>
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+                <option value="year">This year</option>
+                <option value="all-time">All time</option>
+                <option value="custom">Custom range</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="analytics-start">From</Label>
+              <Input
+                id="analytics-start"
+                type="date"
+                value={range?.start ?? ""}
+                onChange={(event) => changeDate("start", event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="analytics-end">To</Label>
+              <Input
+                id="analytics-end"
+                type="date"
+                value={range?.end ?? ""}
+                onChange={(event) => changeDate("end", event.target.value)}
+              />
+            </div>
           </div>
           {!validRange && (
-            <p className="text-destructive text-sm sm:col-span-2">Choose a valid date range.</p>
+            <p className="text-destructive text-sm">Choose a valid date range.</p>
           )}
         </CardContent>
       </Card>

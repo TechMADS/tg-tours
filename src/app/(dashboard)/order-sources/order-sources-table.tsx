@@ -16,6 +16,7 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatDate } from "@/lib/format";
+import { reportBulkDelete, runBulkDelete } from "@/lib/bulk-delete";
 import type { OrderSource } from "@/types/models";
 import { OrderSourceForm } from "./order-source-form";
 
@@ -116,6 +117,13 @@ export function OrderSourcesTable({
                     toolbar={canManage
                         ? <Button onClick={openCreate}><Plus className="mr-2 size-4" /> Add source</Button>
                         : undefined}
+                    bulkDelete={canManage ? {
+                        getId: (source) => source.id,
+                        onDelete: async (sources) => {
+                            const result = await runBulkDelete(sources.map((source) => source.id), deleteOrderSource);
+                            reportBulkDelete(result, "source");
+                        },
+                    } : undefined}
                 />
             )}
 

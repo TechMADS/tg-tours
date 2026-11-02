@@ -1,10 +1,10 @@
 "use client";
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { addMember, updateMember } from "@/actions/members";
+import { addMember, updateMember, uploadMemberAadhaar } from "@/actions/members";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -63,8 +63,10 @@ function MemberForm({
   booking: Booking; sources: Source[]; member: Member | null; takenIds: string[]; onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const another = useRef(false);
-  const prevCategory = useRef<AgeCategory>(member?.category ?? "adult");
+  const [aadhaarFile, setAadhaarFile] = useState<File | null>(null);
+  const [aadhaarInputKey, setAadhaarInputKey] = useState(0);
+  const [keepOpenAfterSave, setKeepOpenAfterSave] = useState(false);
+  const [prevCategory, setPrevCategory] = useState<AgeCategory>(member?.category ?? "adult");
   const [mode, setMode] = useState<Mode>(member ? "chosen" : "pick");
   const [chosen, setChosen] = useState<Chosen | null>(
     member ? { id: member.customerId ?? "", name: member.name, phone: member.phone } : null,
@@ -72,7 +74,7 @@ function MemberForm({
 
   const blank = (sourceId = ""): MemberInput => ({
     customerId: "", name: "", phone: "", email: "",
-    gender: "male", category: "adult", age: "",
+    gender: "male", category: "adult", dateOfBirth: "", age: "",
     sourceId, price: fromMinor(booking.rates.adult), note: "",
   });
 
@@ -85,6 +87,7 @@ function MemberForm({
       ? {
           customerId: member.customerId ?? "", name: member.name, phone: member.phone, email: "",
           gender: member.gender, category: member.category,
+          dateOfBirth: member.dateOfBirth ?? "",
           age: member.age === null ? "" : String(member.age),
           sourceId: member.sourceId, price: fromMinor(member.price), note: member.note,
         }
@@ -116,14 +119,11 @@ function MemberForm({
   // Switching category swaps the price to that category's rate, unless the price was customised
   function onCategoryChange(next: AgeCategory) {
     const current = toMinor(Number(getValues("price")));
-    if (current === booking.rates[prevCategory.current]) setValue("price", fromMinor(booking.rates[next]));
-    prevCategory.current = next;
+    if (current === booking.rates[prevCategory]) setValue("price", fromMinor(booking.rates[next]));
+    setPrevCategory(next);
   }
 
-  function submit(v: MemberInput, force = false) {
-    const keepOpen = another.current;
-    another.current = false;
-
+  function submit(v: MemberInput, force = false, keepOpen = false) {
     startTransition(async () => {
       const res = member
         ? await updateMember(booking.id, member.id, v)
@@ -135,7 +135,7 @@ function MemberForm({
             duration: 10000,
             action: {
               label: "Add anyway",
-              onClick: () => { another.current = keepOpen; submit(v, true); },
+              onClick: () => submit(v, true, keepOpen),
             },
           });
         } else {
@@ -144,10 +144,24 @@ function MemberForm({
         return;
       }
 
-      toast.success(member ? "Member updated" : `${chosen?.name || v.name} added`);
+      const savedMemberId = member?.id ?? res.memberId;
+      if (aadhaarFile && savedMemberId) {
+        const upload = await uploadMemberAadhaar(booking.id, savedMemberId, aadhaarFile);
+        if (!upload.ok) {
+          toast.error(`Member saved, but Aadhaar upload failed: ${upload.error} Edit the member to retry.`);
+        } else {
+          toast.success(member ? "Member updated" : `${chosen?.name || v.name} added`);
+        }
+      } else {
+        toast.success(member ? "Member updated" : `${chosen?.name || v.name} added`);
+      }
+
       if (keepOpen) {
-        prevCategory.current = "adult";
+        setPrevCategory("adult");
+        setKeepOpenAfterSave(false);
         reset(blank(v.sourceId));
+        setAadhaarFile(null);
+        setAadhaarInputKey((current) => current + 1);
         setChosen(null);
         setMode("pick");
       } else {
@@ -159,7 +173,7 @@ function MemberForm({
   const hasOldSource = member && !sources.some((s) => s.id === member.sourceId);
 
   return (
-    <form onSubmit={handleSubmit((v) => submit(v))} className="space-y-4">
+    <form onSubmit={handleSubmit((v) => submit(v, false, keepOpenAfterSave))} className="space-y-4">
       {/* Customer */}
       <div className="space-y-2 rounded-md border p-3">
         <Label>Customer</Label>
@@ -228,7 +242,7 @@ function MemberForm({
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2">
           <Label htmlFor="mgender">Gender</Label>
           <select id="mgender" className={selectClass} {...register("gender")}>
@@ -245,10 +259,39 @@ function MemberForm({
           </select>
         </div>
         <div className="space-y-2">
+          <Label htmlFor="mdob">Date of birth</Label>
+          <Input id="mdob" type="date" {...register("dateOfBirth")} />
+          <Err m={errors.dateOfBirth?.message} />
+        </div>
+        <div className="space-y-2">
           <Label htmlFor="mage">Age (optional)</Label>
           <Input id="mage" inputMode="numeric" {...register("age")} />
           <Err m={errors.age?.message} />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="maadhaar">Aadhaar card image (optional)</Label>
+        <Input
+          key={aadhaarInputKey}
+          id="maadhaar"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(event) => setAadhaarFile(event.target.files?.[0] ?? null)}
+        />
+        {aadhaarFile && (
+          <p className="text-muted-foreground text-xs">Selected: {aadhaarFile.name}</p>
+        )}
+        {member?.aadhaarCard && (
+          <Link
+            href={`/api/bookings/${booking.id}/members/${member.id}/aadhaar`}
+            target="_blank"
+            className="text-sm text-primary underline"
+          >
+            View uploaded Aadhaar card
+          </Link>
+        )}
+        <p className="text-muted-foreground text-xs">JPEG, PNG, or WebP up to 10 MB. Stored privately.</p>
       </div>
 
       <div className="space-y-2">
@@ -282,12 +325,12 @@ function MemberForm({
         {!member && (
           <Button
             type="submit" variant="outline" disabled={pending}
-            onClick={() => { another.current = true; }}
+            onClick={() => setKeepOpenAfterSave(true)}
           >
             Save &amp; add another
           </Button>
         )}
-        <Button type="submit" disabled={pending} onClick={() => { another.current = false; }}>
+        <Button type="submit" disabled={pending} onClick={() => setKeepOpenAfterSave(false)}>
           {pending ? "Saving…" : member ? "Save changes" : "Save member"}
         </Button>
       </div>
