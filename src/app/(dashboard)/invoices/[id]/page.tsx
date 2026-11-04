@@ -50,6 +50,10 @@ export default async function InvoicePage({
       amount: fromMinor(payment.amount),
       date: payment.date.slice(0, 10),
     })),
+    nextPaymentDue: {
+      amount: invoice.nextPaymentDue ? fromMinor(invoice.nextPaymentDue.amount) : undefined,
+      date: invoice.nextPaymentDue?.date.slice(0, 10) ?? "",
+    },
     paymentTerms: invoice.paymentTerms,
     cancellationPolicy: invoice.cancellationPolicy,
     termsAndConditions: invoice.termsAndConditions,

@@ -171,6 +171,7 @@ export type Invoice = Meta & {
   taxAmount: number;
   total: number;
   payments: InvoicePayment[];
+  nextPaymentDue?: { amount: number; date: ISO } | null;
   amountPaid: number;   // total payments in invoice currency
   remainingBalance: number;
   status: InvoiceStatus;

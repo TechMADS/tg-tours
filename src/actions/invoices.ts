@@ -109,6 +109,12 @@ function buildInvoice(
     taxAmount: totals.taxAmount,
     total: totals.total,
     payments,
+    nextPaymentDue: input.nextPaymentDue.amount !== undefined && input.nextPaymentDue.date
+      ? {
+          amount: toMinor(input.nextPaymentDue.amount),
+          date: input.nextPaymentDue.date,
+        }
+      : null,
     amountPaid,
     remainingBalance,
     status,

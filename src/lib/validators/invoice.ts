@@ -40,6 +40,10 @@ export const invoiceInputSchema = z.object({
     amount: z.number().positive("Enter a payment amount").max(1_000_000_000),
     date,
   })).max(20, "Add no more than 20 payments"),
+  nextPaymentDue: z.object({
+    amount: z.number().positive("Enter an amount greater than zero").max(1_000_000_000).optional(),
+    date: z.union([date, z.literal("")]),
+  }),
   paymentTerms: z.string().trim().max(3000),
   cancellationPolicy: z.string().trim().max(3000),
   termsAndConditions: z.string().trim().max(5000),
@@ -63,6 +67,12 @@ export const invoiceInputSchema = z.object({
   }
   if (invoice.discount > invoice.package.totalPrice) {
     ctx.addIssue({ code: "custom", path: ["discount"], message: "Discount can't exceed package price" });
+  }
+  if (invoice.nextPaymentDue.amount !== undefined && !invoice.nextPaymentDue.date) {
+    ctx.addIssue({ code: "custom", path: ["nextPaymentDue", "date"], message: "Enter a due date for the next payment" });
+  }
+  if (invoice.nextPaymentDue.amount === undefined && invoice.nextPaymentDue.date) {
+    ctx.addIssue({ code: "custom", path: ["nextPaymentDue", "amount"], message: "Enter the amount due on this date" });
   }
 });
 

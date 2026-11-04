@@ -25,6 +25,16 @@ import { InvoicePdfButton } from "./invoice-pdf-button";
 
 const selectClass = "border-input bg-background h-10 w-full min-w-0 rounded-md border px-3 text-sm";
 const dateValue = (date: string) => date.slice(0, 10);
+const durationCounts = (duration: string) => ({
+  nights: duration.match(/(\d+)\s*nights?/i)?.[1] ?? "",
+  days: duration.match(/(\d+)\s*days?/i)?.[1] ?? "",
+});
+const formatPackageDuration = (nights: string, days: string) => {
+  if (!nights || !days) return "";
+  const nightCount = Number(nights);
+  const dayCount = Number(days);
+  return `${nightCount} ${nightCount === 1 ? "night" : "nights"} / ${dayCount} ${dayCount === 1 ? "day" : "days"}`;
+};
 const DEFAULT_PAYMENT_TERMS = "- 40% advance payment is due on or before booking confirmation.\n- Remaining amount is due on or before the travel date.";
 const DEFAULT_CANCELLATION = "- Cancellation made more than 7 days before travel: 75% of the package amount will be deducted.\n- Cancellation made within 3 days of travel: 100% of the package amount will be deducted.\n- No refund is provided for last-minute cancellations or no-shows.\n- Eligible refunds are processed within 7-10 working days.";
 const DEFAULT_TERMS = "- Guide charges must be paid; otherwise, guidance will be provided remotely.\n- Rates are applicable for group bookings; participant changes may affect the cost.\n- Hotel check-in and check-out timings are subject to hotel policies.\n- Rooms are provided on a sharing basis, subject to availability.\n- Sightseeing is covered as per itinerary; sequence may change due to conditions.\n- The company is not responsible for delays due to natural or unforeseen circumstances.\n- Personal expenses are not included unless mentioned.\n- Clients must carry valid government-issued ID proof.\n- Any damages will be chargeable to the client.\n- Management reserves the right to modify the itinerary.";
@@ -141,6 +151,10 @@ function initialValues(
         amount: payment.amount / 100,
         date: dateValue(payment.date),
       })),
+      nextPaymentDue: {
+        amount: initial.nextPaymentDue ? initial.nextPaymentDue.amount / 100 : undefined,
+        date: initial.nextPaymentDue ? dateValue(initial.nextPaymentDue.date) : "",
+      },
       paymentTerms: initial.paymentTerms,
       cancellationPolicy: initial.cancellationPolicy,
       termsAndConditions: initial.termsAndConditions,
@@ -163,6 +177,7 @@ function initialValues(
     taxRatePercent: defaultTax.defaultRatePercent,
     taxMode: defaultTax.mode,
     payments: [],
+    nextPaymentDue: { amount: undefined, date: "" },
     paymentTerms: DEFAULT_PAYMENT_TERMS,
     cancellationPolicy: DEFAULT_CANCELLATION,
     termsAndConditions: DEFAULT_TERMS,
@@ -192,9 +207,12 @@ export function InvoiceForm({
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [localAttachmentFiles, setLocalAttachmentFiles] = useState<Record<string, File>>({});
+  const defaultValues = initialValues(today, invoice, defaultTax, suggestedInvoiceNo);
+  const [durationNights, setDurationNights] = useState(() => durationCounts(defaultValues.package.duration).nights);
+  const [durationDays, setDurationDays] = useState(() => durationCounts(defaultValues.package.duration).days);
   const { register, control, handleSubmit, setValue, formState: { errors } } = useForm<InvoiceInput>({
     resolver: zodResolver(invoiceInputSchema),
-    defaultValues: initialValues(today, invoice, defaultTax, suggestedInvoiceNo),
+    defaultValues,
   });
   const payments = useFieldArray({ control, name: "payments" });
   const attachments = useFieldArray({ control, name: "attachments", keyName: "fieldKey" });
@@ -214,6 +232,12 @@ export function InvoiceForm({
   );
   const currencyField = register("currency");
 
+  function updateDuration(nights: string, days: string) {
+    setDurationNights(nights);
+    setDurationDays(days);
+    setValue("package.duration", formatPackageDuration(nights, days), { shouldDirty: true });
+  }
+
   function convertInvoiceCurrency(nextCurrency: CurrencyCode) {
     const currentCurrency = values.currency;
     if (currentCurrency === nextCurrency) return true;
@@ -221,6 +245,7 @@ export function InvoiceForm({
     const hasAmounts = Number(values.package.totalPrice) > 0
       || Number(values.package.cost) > 0
       || Number(values.discount) > 0
+      || Number(values.nextPaymentDue.amount) > 0
       || values.payments.some((payment) => Number(payment.amount) > 0);
     const sourceRate = currentCurrency === "INR" ? 1 : fxRates[currentCurrency];
     const targetRate = nextCurrency === "INR" ? 1 : fxRates[nextCurrency];
@@ -235,6 +260,9 @@ export function InvoiceForm({
     setValue("package.totalPrice", convert(values.package.totalPrice));
     setValue("package.cost", convert(values.package.cost));
     setValue("discount", convert(values.discount));
+    if (values.nextPaymentDue.amount !== undefined) {
+      setValue("nextPaymentDue.amount", convert(values.nextPaymentDue.amount));
+    }
     values.payments.forEach((payment, index) => {
       setValue(`payments.${index}.amount`, convert(payment.amount));
     });
@@ -263,7 +291,11 @@ export function InvoiceForm({
     setValue("package.destination", booking.destination);
     setValue("package.startDate", dateValue(booking.travelStart));
     setValue("package.endDate", dateValue(booking.travelEnd));
-    setValue("package.duration", formatDuration(booking.travelStart, booking.travelEnd));
+    const duration = formatDuration(booking.travelStart, booking.travelEnd);
+    const counts = durationCounts(duration);
+    setDurationNights(counts.nights);
+    setDurationDays(counts.days);
+    setValue("package.duration", formatPackageDuration(counts.nights, counts.days));
     setValue("package.memberCount", Math.max(booking.memberCount, 1));
     setValue("package.totalPrice", booking.totalAmount / 100);
     setValue("package.cost", (booking.defaultPackageCost ?? 0) / 100);
@@ -344,11 +376,6 @@ export function InvoiceForm({
                   ))}
                 </select>
               </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="packageName">Package Name</Label>
-                <Input id="packageName" maxLength={80} {...register("package.name")} />
-                <ErrorText message={errors.package?.name?.message} />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="tripDestination">Trip Destination</Label>
                 <Input id="tripDestination" {...register("tripDestination")} />
@@ -405,20 +432,43 @@ export function InvoiceForm({
                 <ErrorText message={errors.package?.endDate?.message} />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="packageDuration">Duration</Label>
-                <Input id="packageDuration" type="text" maxLength={80} placeholder="e.g. 5 days, 4 nights" {...register("package.duration")} />
+                <Label htmlFor="packageNights">Duration</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="relative">
+                    <Input
+                      id="packageNights"
+                      type="number"
+                      min={0}
+                      step={1}
+                      className="pr-16"
+                      value={durationNights}
+                      onChange={(event) => updateDuration(event.target.value, durationDays)}
+                      aria-label="Duration in nights"
+                      placeholder="0"
+                    />
+                    <span className="absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted-foreground">Nights</span>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="packageDays"
+                      type="number"
+                      min={0}
+                      step={1}
+                      className="pr-12"
+                      value={durationDays}
+                      onChange={(event) => updateDuration(durationNights, event.target.value)}
+                      aria-label="Duration in days"
+                      placeholder="0"
+                    />
+                    <span className="absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted-foreground">Days</span>
+                  </div>
+                </div>
                 <ErrorText message={errors.package?.duration?.message} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="membersCount">Number of Members</Label>
                 <Input id="membersCount" type="number" min={1} {...register("package.memberCount", { valueAsNumber: true })} />
                 <ErrorText message={errors.package?.memberCount?.message} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="packageCost">Package Cost ({values.currency})</Label>
-                <Input id="packageCost" type="number" min={0} step="0.01" {...register("package.cost", { valueAsNumber: true })} />
-                <p className="text-muted-foreground text-xs">Defaults from the linked package; edit to override this invoice’s cost.</p>
-                <ErrorText message={errors.package?.cost?.message} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
@@ -491,6 +541,26 @@ export function InvoiceForm({
               <p className="rounded-md bg-amber-500/10 p-3 text-sm font-medium">
                 Remaining Balance: {formatMoney(remaining, values.currency)}
               </p>
+              <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="nextPaymentAmount">Next Payment Amount (optional)</Label>
+                  <Input
+                    id="nextPaymentAmount"
+                    type="number"
+                    min={0.01}
+                    step="0.01"
+                    {...register("nextPaymentDue.amount", {
+                      setValueAs: (value: string) => value === "" ? undefined : Number(value),
+                    })}
+                  />
+                  <ErrorText message={errors.nextPaymentDue?.amount?.message} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nextPaymentDate">Next Payment Due Date (optional)</Label>
+                  <Input id="nextPaymentDate" type="date" {...register("nextPaymentDue.date")} />
+                  <ErrorText message={errors.nextPaymentDue?.date?.message} />
+                </div>
+              </div>
             </CardContent>
           </Card>
 

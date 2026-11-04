@@ -162,6 +162,12 @@ export function InvoiceDocument({
                 value={formatMoney(balance, currency)}
                 emphasis
               />
+              {values.nextPaymentDue.amount !== undefined && values.nextPaymentDue.date && (
+                <InvoiceRow
+                  label="Next Payment Due"
+                  value={`${formatMoney(toMinor(values.nextPaymentDue.amount), currency)} · ${formatDate(values.nextPaymentDue.date)}`}
+                />
+              )}
             </tbody>
           </table>
           {values.payments.length > 0 && (
