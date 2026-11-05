@@ -10,6 +10,14 @@ export type CustomersPage = {
   nextCursor: string | null;
 };
 
+function isMissingIndexError(error: unknown): boolean {
+  if (!(error instanceof Error) || !("code" in error)) return false;
+  return (
+    (error.code === 9 || error.code === "failed-precondition" || error.code === "FAILED_PRECONDITION") &&
+    /requires an index/i.test(error.message)
+  );
+}
+
 /** Strips the encrypted ID numbers so they can never reach the browser */
 export function toCustomer(snap: FirebaseFirestore.DocumentSnapshot): Customer {
   const c = serializeDoc<Customer & { idDocs?: Array<Record<string, string>> }>(snap);
@@ -40,21 +48,46 @@ export async function listCustomersPage(rawQuery = "", cursor?: string | null): 
   const field = byPhone ? "phoneDigits" : "searchName";
   const term = byPhone ? digits : q;
 
-  let query: FirebaseFirestore.Query = adminDb
-    .collection(COL.customers)
-    .where("isDeleted", "==", false)
-    .orderBy(field)
-    .orderBy(FieldPath.documentId());
+  const buildQuery = (excludeDeleted: boolean, after?: string | null) => {
+    let query: FirebaseFirestore.Query = adminDb.collection(COL.customers);
+    if (excludeDeleted) query = query.where("isDeleted", "==", false);
+    query = query.orderBy(field).orderBy(FieldPath.documentId());
+    if (term) query = query.where(field, ">=", term).where(field, "<", term + "\uf8ff");
+    if (after) {
+      const i = after.lastIndexOf("|");
+      query = query.startAfter(after.slice(0, i), after.slice(i + 1));
+    }
+    return query;
+  };
 
-  if (term) query = query.where(field, ">=", term).where(field, "<", term + "\uf8ff");
+  let docs: FirebaseFirestore.QueryDocumentSnapshot[];
+  let hasMore: boolean;
+  try {
+    const snap = await buildQuery(true, cursor).limit(PAGE_SIZE + 1).get();
+    docs = snap.docs.slice(0, PAGE_SIZE);
+    hasMore = snap.docs.length > PAGE_SIZE;
+  } catch (error) {
+    if (!isMissingIndexError(error)) throw error;
 
-  if (cursor) {
-    const i = cursor.lastIndexOf("|");
-    query = query.startAfter(cursor.slice(0, i), cursor.slice(i + 1));
+    const matchingDocs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+    let scanCursor = cursor;
+    let exhausted = false;
+    while (matchingDocs.length <= PAGE_SIZE && !exhausted) {
+      const snap = await buildQuery(false, scanCursor).limit(PAGE_SIZE + 1).get();
+      for (const doc of snap.docs) {
+        if (doc.data().isDeleted === false) matchingDocs.push(doc);
+        if (matchingDocs.length > PAGE_SIZE) break;
+      }
+      exhausted = snap.docs.length < PAGE_SIZE + 1;
+      const lastScanned = snap.docs[snap.docs.length - 1];
+      if (!exhausted && matchingDocs.length <= PAGE_SIZE && lastScanned) {
+        scanCursor = `${lastScanned.get(field)}|${lastScanned.id}`;
+      }
+    }
+    docs = matchingDocs.slice(0, PAGE_SIZE);
+    hasMore = matchingDocs.length > PAGE_SIZE;
   }
 
-  const snap = await query.limit(PAGE_SIZE + 1).get();
-  const docs = snap.docs.slice(0, PAGE_SIZE);
   const last = docs[docs.length - 1];
   const customers = docs.map(toCustomer);
   const customerIds = customers.map((customer) => customer.id);
@@ -126,7 +159,7 @@ export async function listCustomersPage(rawQuery = "", cursor?: string | null): 
         .sort((a, b) => a.localeCompare(b)),
       dateOfBirth: dateOfBirthByCustomer.get(customer.id)?.date ?? null,
     })),
-    nextCursor: snap.docs.length > PAGE_SIZE && last ? `${last.get(field)}|${last.id}` : null,
+    nextCursor: hasMore && last ? `${last.get(field)}|${last.id}` : null,
   };
 }
 
