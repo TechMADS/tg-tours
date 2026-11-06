@@ -112,8 +112,8 @@ export default async function PackageDetailPage({ params }: { params: Promise<{ 
                                 const next = pkg.priceTiers[i + 1];
                                 const hi = next ? next.fromPersons - 1 : pkg.maxPersons > 0 ? pkg.maxPersons : null;
                                 const label =
-                                    hi === null ? `Min ${t.fromPersons} members`
-                                        : hi === t.fromPersons ? `${t.fromPersons} persons`
+                                    hi === null ? `${t.fromPersons}+ persons`
+                                        : hi === t.fromPersons ? `${t.fromPersons} ${t.fromPersons === 1 ? "person" : "persons"}`
                                             : `${t.fromPersons} to ${hi} persons`;
                                 return (
                                     <li key={t.fromPersons} className="flex items-center justify-between py-2">

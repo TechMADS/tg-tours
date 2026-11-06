@@ -23,19 +23,15 @@ const common = {
   nights: z.number().int().min(0, "Cannot be negative").max(60, "Max 60 nights"),
   groupType: z.enum(GROUP_TYPES),
   minPersons: z.number().int("Whole number").min(1, "At least 1").max(500, "Max 500"),
-  maxPersons: z.number().int("Whole number").min(0, "Cannot be negative").max(500, "Max 500"),
   currency: z.enum(CURRENCY_CODES),
   price: z.number().min(0, "Price cannot be negative").max(1_000_000_000, "Price is too large"),
-  cost: z.number().min(0, "Cost cannot be negative").max(1_000_000_000, "Cost is too large"),
-  costCurrency: z.enum(CURRENCY_CODES),
   extraTiers: z
     .array(
       z.object({
         fromPersons: z.number().int("Whole number").min(2, "Enter persons"),
         price: z.number().min(0.01, "Enter a price").max(1_000_000_000, "Price is too large"),
       }),
-    )
-    .max(6, "Max 6 group rates"),
+    ),
   status: packageStatusSchema,
 };
 
@@ -71,7 +67,6 @@ type Rules = {
   nights: number;
   groupType: string;
   minPersons: number;
-  maxPersons: number;
   extraTiers: { fromPersons: number }[];
 };
 type Ctx = {
@@ -83,19 +78,16 @@ function rules(d: Rules, ctx: Ctx) {
     ctx.addIssue({ code: "custom", path, message });
 
   if (d.nights > d.days) issue(["nights"], "Nights can't exceed days");
-  if (d.maxPersons !== 0 && d.maxPersons < d.minPersons) {
-    issue(["maxPersons"], "Maximum can't be below the minimum");
-  }
-  if (d.groupType === "couple" && (d.minPersons !== 2 || d.maxPersons !== 2)) {
+  if (d.groupType === "couple" && d.minPersons !== 2) {
     issue(["minPersons"], "A couple package is exactly 2 persons");
   }
 
-  let prev = d.minPersons;
+  let prev = 1;
   d.extraTiers.forEach((t, i) => {
-    if (t.fromPersons <= prev) {
+    if (d.groupType === "couple") {
+      issue(["extraTiers", i, "fromPersons"], "Group rates aren't available for couple packages");
+    } else if (t.fromPersons <= prev) {
       issue(["extraTiers", i, "fromPersons"], `Must be above ${prev} (rates go in increasing order)`);
-    } else if (d.maxPersons !== 0 && t.fromPersons > d.maxPersons) {
-      issue(["extraTiers", i, "fromPersons"], "Above the maximum persons");
     }
     prev = t.fromPersons;
   });

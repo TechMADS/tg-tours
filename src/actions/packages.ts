@@ -5,8 +5,7 @@ import { randomUUID } from "node:crypto";
 import { adminDb } from "@/lib/firebase/admin";
 import { requireModuleEditor } from "@/lib/auth/session";
 import { toMinor } from "@/lib/finance/currency";
-import { buildMoneyEntry, type MoneyEntry } from "@/lib/finance/fx";
-import { getSettings } from "@/lib/settings";
+import type { MoneyEntry } from "@/lib/finance/fx";
 import {
   COL, auditEntry, createMeta, deleteMeta, serializeDoc, toSearchName, updateMeta,
 } from "@/lib/firestore/helpers";
@@ -109,9 +108,8 @@ export async function uploadPackageImage(formData: FormData) {
   return { ok: true as const, url };
 }
 
-function toDoc(d: PackageInput, rates: Record<string, number>, previousCost?: MoneyEntry | null) {
+function toDoc(d: PackageInput, cost: MoneyEntry | null) {
   const base = toMinor(d.price);
-  const costAmount = toMinor(d.cost);
   return {
     name: d.name,
     searchName: toSearchName(d.name),
@@ -120,20 +118,11 @@ function toDoc(d: PackageInput, rates: Record<string, number>, previousCost?: Mo
     nights: d.nights,
     groupType: d.groupType,
     minPersons: d.minPersons,
-    maxPersons: d.maxPersons,
+    maxPersons: d.groupType === "couple" ? 2 : 0,
     price: { currency: d.currency, amount: base }, // base per-person price
-    cost: costAmount > 0
-      ? previousCost?.amount === costAmount && previousCost.currency === d.costCurrency
-        ? previousCost
-        : buildMoneyEntry({
-          currency: d.costCurrency,
-          amount: costAmount,
-          defaultRates: rates,
-          defaultFeePercent: 0,
-        })
-      : null,
+    cost,
     priceTiers: [
-      { fromPersons: d.minPersons, amount: base },
+      { fromPersons: 1, amount: base },
       ...d.extraTiers.map((t) => ({ fromPersons: t.fromPersons, amount: toMinor(t.price) })),
     ],
     inclusions: d.inclusions,
@@ -162,12 +151,7 @@ export async function createPackage(input: unknown): Promise<Result> {
   const parsed = packageInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
-  const settings = await getSettings();
-  if (parsed.data.cost > 0 && parsed.data.costCurrency !== "INR"
-    && (!settings.fx.rates[parsed.data.costCurrency] || settings.fx.rates[parsed.data.costCurrency] <= 0)) {
-    return { ok: false, error: `Set an exchange rate for ${parsed.data.costCurrency} in Settings before recording a package cost` };
-  }
-  const doc = toDoc(parsed.data, settings.fx.rates);
+  const doc = toDoc(parsed.data, null);
   if (doc.status === "active" && doc.price.amount <= 0) return { ok: false, error: NEEDS_PRICE };
   if (await nameTaken(doc.searchName)) {
     return { ok: false, error: "A package with this name already exists" };
@@ -200,17 +184,7 @@ export async function updatePackage(id: string, input: unknown): Promise<Result>
 
   const previous = serializeDoc<TravelPackage>(snap);
   const previousCost = previous.cost ?? null;
-  const costUnchanged = previousCost?.amount === toMinor(parsed.data.cost)
-    && previousCost.currency === parsed.data.costCurrency;
-  const settings = await getSettings();
-  if (
-    parsed.data.cost > 0 && !costUnchanged && parsed.data.costCurrency !== "INR"
-    && (!settings.fx.rates[parsed.data.costCurrency] || settings.fx.rates[parsed.data.costCurrency] <= 0)
-  ) {
-    return { ok: false, error: `Set an exchange rate for ${parsed.data.costCurrency} in Settings before recording a package cost` };
-  }
-
-  const doc = toDoc(parsed.data, settings.fx.rates, previousCost);
+  const doc = toDoc(parsed.data, previousCost);
   if (doc.status === "active" && doc.price.amount <= 0) return { ok: false, error: NEEDS_PRICE };
   if (await nameTaken(doc.searchName, id)) {
     return { ok: false, error: "A package with this name already exists" };
@@ -235,6 +209,7 @@ export async function updatePackage(id: string, input: unknown): Promise<Result>
 
   revalidatePath("/packages");
   revalidatePath(`/packages/${id}`);
+  revalidatePath("/");
   return { ok: true, id };
 }
 

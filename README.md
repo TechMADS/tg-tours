@@ -1,3 +1,35 @@
+# Targets and achievements
+
+The admin and manager dashboard includes a Targets section for booking,
+completed-booking, revenue, profit, new-customer, and traveler goals. Targets
+are stored in the existing Firestore database under `targets`; no separate
+database or migration is required. Target writes are authenticated, role
+restricted, soft-deleted, and recorded in the existing audit log.
+
+Revenue follows the dashboard and Finance report: non-cancelled booking totals,
+grouped by the booking travel-start date and the target currency. Profit uses
+that revenue less the booking's package cost and linked expenses, plus company
+expenses dated in the target range, following the dashboard's currency and
+exchange-rate rules. Booking-count goals use booking creation dates; completed
+booking goals additionally require `completed` status. Traveler totals use
+travel-start dates, and new-customer goals use customer creation dates. This
+application does not currently have a separate orders collection, so there is
+no orders goal.
+
+Daily, Monday–Sunday weekly, calendar monthly, quarterly, half-yearly, yearly,
+and custom periods are saved as fixed inclusive dates in India time. Business
+record changes refresh the dashboard. When an active target first reaches its
+goal, a Firestore transaction records the completion and notification timestamps
+before the dashboard displays its celebration, preventing duplicate popups.
+
+To try it, sign in as an admin or manager, open **Targets** or the dashboard
+section, and create a target for an existing period/metric (for example a
+monthly booking target). The live value is calculated from existing records;
+create or update a booking/customer/expense in that range and revisit the
+dashboard to see refreshed progress. For a celebration, choose a target value
+at or below the current actual value for its period. Targets are tenant-wide
+because this application currently represents a single business.
+
 # R2 package image storage
 
 Package image uploads use Cloudflare R2's S3-compatible API. Set these server-side

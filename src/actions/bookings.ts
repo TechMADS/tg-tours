@@ -79,6 +79,7 @@ export async function createBooking(input: unknown): Promise<Result> {
       return ref.id;
     });
     revalidatePath("/bookings");
+    revalidatePath("/");
     return { ok: true, id };
   } catch (e) {
     return fail(e);
@@ -155,6 +156,7 @@ export async function updateBooking(id: string, input: unknown): Promise<Result>
     });
     revalidatePath("/bookings");
     revalidatePath(`/bookings/${id}`);
+    revalidatePath("/");
     return { ok: true, id };
   } catch (e) {
     return fail(e);
@@ -185,6 +187,7 @@ export async function setBookingStatus(id: string, status: BookingStatus): Promi
 
   revalidatePath("/bookings");
   revalidatePath(`/bookings/${id}`);
+  revalidatePath("/");
   return { ok: true, id };
 }
 
@@ -204,5 +207,6 @@ export async function deleteBooking(id: string): Promise<Result> {
   await batch.commit();
 
   revalidatePath("/bookings");
+  revalidatePath("/");
   return { ok: true, id };
 }

@@ -186,6 +186,7 @@ export async function addMember(bookingId: string, input: unknown, force = false
     revalidatePath("/bookings");
     revalidatePath(`/bookings/${bookingId}`);
     revalidatePath("/customers");
+    revalidatePath("/");
     return { ok: true, memberId };
   } catch (e) {
     return fail(e);
@@ -335,6 +336,7 @@ export async function updateMember(bookingId: string, memberId: string, input: u
     });
     revalidatePath("/bookings");
     revalidatePath(`/bookings/${bookingId}`);
+    revalidatePath("/");
     return { ok: true };
   } catch (e) {
     return fail(e);
@@ -369,6 +371,7 @@ export async function cancelMember(bookingId: string, memberId: string): Promise
     });
     revalidatePath("/bookings");
     revalidatePath(`/bookings/${bookingId}`);
+    revalidatePath("/");
     return { ok: true };
   } catch (e) {
     return fail(e);

@@ -15,6 +15,7 @@ export const COL = {
   counters: "counters",
   stats: "stats",
   auditLogs: "auditLogs",
+  targets: "targets",
 } as const;
 
 /* ---------- write metadata ---------- */

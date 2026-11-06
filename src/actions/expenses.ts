@@ -178,6 +178,7 @@ export async function createExpense(formData: FormData): Promise<Result> {
 
   revalidatePath("/finance");
   revalidatePath("/company-expenses");
+  revalidatePath("/");
   if (input.bookingId) revalidatePath(`/bookings/${input.bookingId}`);
   return { ok: true, id: expenseRef.id };
 }
@@ -200,6 +201,7 @@ export async function deleteExpense(id: string): Promise<Result> {
   await batch.commit();
   revalidatePath("/finance");
   revalidatePath("/company-expenses");
+  revalidatePath("/");
   if (expense.bookingId) revalidatePath(`/bookings/${expense.bookingId}`);
   return { ok: true, id };
 }

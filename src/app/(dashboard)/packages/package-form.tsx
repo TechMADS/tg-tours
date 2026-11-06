@@ -255,11 +255,8 @@ export function PackageForm({
       nights: pkg?.nights ?? 2,
       groupType: pkg?.groupType ?? "open_group",
       minPersons: pkg?.minPersons ?? 1,
-      maxPersons: pkg?.maxPersons ?? 0,
       currency: pkg?.price.currency ?? "INR",
       price: pkg ? fromMinor(pkg.price.amount) : 0,
-      cost: pkg?.cost ? fromMinor(pkg.cost.amount) : 0,
-      costCurrency: pkg?.cost?.currency ?? pkg?.price.currency ?? "INR",
       extraTiers: (pkg?.priceTiers ?? [])
         .slice(1)
         .map((t) => ({ fromPersons: t.fromPersons, price: fromMinor(t.amount) })),
@@ -282,7 +279,6 @@ export function PackageForm({
   const tiers = useFieldArray({ control, name: "extraTiers" });
   const currency = useWatch({ control, name: "currency" }) as CurrencyCode;
   const price = useWatch({ control, name: "price" });
-  const minP = useWatch({ control, name: "minPersons" });
   const extra = useWatch({ control, name: "extraTiers" });
   const groupType = useWatch({ control, name: "groupType" });
 
@@ -291,11 +287,9 @@ export function PackageForm({
   function onGroupTypeChange(t: string) {
     if (t === "couple") {
       setValue("minPersons", 2);
-      setValue("maxPersons", 2);
       tiers.replace([]);
     } else if (t === "open_group") {
       setValue("minPersons", 1);
-      setValue("maxPersons", 0);
     } else if (getValues("minPersons") < 2) {
       setValue("minPersons", 2);
     }
@@ -303,7 +297,7 @@ export function PackageForm({
 
   // Live preview of what each group size pays
   const preview = [
-    { from: minP, price },
+    { from: 1, price },
     ...(extra ?? []).map((t) => ({ from: t.fromPersons, price: t.price })),
   ].filter((r) => Number.isFinite(r.from) && r.from > 0 && Number.isFinite(r.price) && r.price > 0);
 
@@ -364,8 +358,8 @@ export function PackageForm({
         <CardHeader>
           <CardTitle>Group size</CardTitle>
           <CardDescription>
-            Couple packages are fixed at 2. For a fixed group such as 12 members, set the same
-            number in both boxes. Strangers trips are open groups where each person joins individually.
+            Couple packages are fixed at 2. For a fixed group such as 12 members, set the minimum
+            persons to 12. Strangers trips are open groups where each person joins individually.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
@@ -387,16 +381,6 @@ export function PackageForm({
               {...register("minPersons", { valueAsNumber: true })}
             />
             <Err m={errors.minPersons?.message} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="maxPersons">Maximum persons</Label>
-            <Input
-              id="maxPersons" type="number" min={0}
-              disabled={groupType === "couple"}
-              {...register("maxPersons", { valueAsNumber: true })}
-            />
-            <p className="text-muted-foreground text-xs">0 means no limit.</p>
-            <Err m={errors.maxPersons?.message} />
           </div>
         </CardContent>
       </Card>
@@ -422,7 +406,7 @@ export function PackageForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="price">
-                Price per person ({Number.isFinite(minP) ? minP : "…"} persons and above)
+                Package price per person
               </Label>
               <Input id="price" type="number" step="0.01" min={0} {...register("price", { valueAsNumber: true })} />
               <Err m={errors.price?.message} />
@@ -431,22 +415,6 @@ export function PackageForm({
                   ≈ {formatMoney(Math.round(toMinor(price) * rate), "INR")} per person at your default rate
                 </p>
               )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cost">Default package cost per booking</Label>
-              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_5rem] gap-3">
-                <Input id="cost" type="number" step="0.01" min={0} {...register("cost", { valueAsNumber: true })} />
-                <select id="costCurrency" className={`${selectClass} min-w-0 px-1`} {...register("costCurrency")}>
-                  {CURRENCY_CODES.map((code) => (
-                    <option key={code} value={code}>{code}</option>
-                  ))}
-                </select>
-              </div>
-              <p className="text-muted-foreground text-xs">
-                Used as the starting cost on invoices linked to this package. You can override it per invoice.
-              </p>
-              <Err m={errors.cost?.message} />
-              <Err m={errors.costCurrency?.message} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
@@ -462,8 +430,8 @@ export function PackageForm({
             <div>
               <p className="text-sm font-medium">Group rates (optional)</p>
               <p className="text-muted-foreground text-xs">
-                Lower the per-person price for bigger groups. The new price applies to everyone in
-                the booking. Add them in increasing order.
+                Add discounted per-person rates for larger groups. Each rate applies to everyone in
+                a booking at or above its threshold. These thresholds are separate from the package minimum.
               </p>
             </div>
 
@@ -495,8 +463,10 @@ export function PackageForm({
                 ))}
                 <Button
                   type="button" variant="outline" size="sm"
-                  disabled={tiers.fields.length >= 6}
-                  onClick={() => tiers.append({ fromPersons: (Number(minP) || 1) + 2, price: 0 })}
+                  onClick={() => tiers.append({
+                    fromPersons: Math.max(2, (extra?.[extra.length - 1]?.fromPersons ?? 1) + 1),
+                    price: 0,
+                  })}
                 >
                   <Plus className="mr-1 size-4" /> Add group rate
                 </Button>

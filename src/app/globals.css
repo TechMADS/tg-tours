@@ -119,3 +119,37 @@
     @apply font-sans;
   }
 }
+
+@keyframes target-confetti-burst {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--confetti-x), var(--confetti-y), 0)
+      rotate(var(--confetti-rotate)) scale(1);
+  }
+}
+
+.target-confetti {
+  position: absolute;
+  top: 44%;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  animation: target-confetti-burst 1.7s cubic-bezier(0.15, 0.65, 0.35, 1) both;
+}
+
+.target-confetti-0 { background: #d6a53c; }
+.target-confetti-1 { background: #0f766e; }
+.target-confetti-2 { background: #5b7cfa; }
+.target-confetti-3 { background: #ec7185; }
+.target-confetti-4 { background: #8c62c7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .target-confetti {
+    animation: none;
+    opacity: 0;
+  }
+}

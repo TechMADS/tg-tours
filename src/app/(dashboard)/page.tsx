@@ -7,7 +7,9 @@ import type { CurrencyCode } from "@/lib/finance/currency";
 import { convertMoneyEntryAmount } from "@/lib/finance/fx";
 import { getSettings } from "@/lib/settings";
 import { todayIST } from "@/lib/format";
+import { listTargetsWithProgress } from "@/lib/data/targets";
 import { DashboardOverview } from "./dashboard-overview";
+import { TargetsPanel } from "./targets/targets-panel";
 
 function lastSixMonths(today: string) {
   const date = new Date(`${today}T00:00:00.000Z`);
@@ -29,11 +31,14 @@ export default async function DashboardPage() {
   const today = todayIST();
   const months = lastSixMonths(today);
   const monthKeys = new Set(months.map(({ key }) => key));
-  const [bookings, packages, expenses, settings] = await Promise.all([
+  const [bookings, packages, expenses, settings, targets] = await Promise.all([
     listBookings(),
     listPackages(),
     user.role === "admin" || user.role === "manager" ? listExpenses() : Promise.resolve([]),
     user.role === "admin" || user.role === "manager" ? getSettings() : Promise.resolve(null),
+    user.role === "admin" || user.role === "manager"
+      ? listTargetsWithProgress()
+      : Promise.resolve([]),
   ]);
   const packageById = new Map(packages.map((pkg) => [pkg.id, pkg]));
   const expensesByBooking = new Map<string, typeof expenses>();
@@ -194,6 +199,11 @@ export default async function DashboardPage() {
         upcoming={upcoming}
         showFinancials={user.role === "admin" || user.role === "manager"}
       />
+      {(user.role === "admin" || user.role === "manager") && (
+        <div className="mt-8">
+          <TargetsPanel targets={targets} today={today} />
+        </div>
+      )}
     </>
   );
 }

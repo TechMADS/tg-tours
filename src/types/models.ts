@@ -46,7 +46,7 @@ export type PackageStatus = "draft" | "active" | "archived";
 
 export type GroupType = "couple" | "fixed_group" | "open_group";
 
-// amount = per-person price in minor units, applies from `fromPersons` upward
+// amount = per-person price in minor units, applies from `fromPersons` upward; base price starts at 1
 export type PriceTier = { fromPersons: number; amount: number };
 
 export type PackageListing = {
@@ -239,4 +239,44 @@ export type FinanceExpense = Meta & {
   money: MoneyEntry;
   note: string;
   receipt: ExpenseReceipt | null;
+};
+
+export type TargetMetric =
+  | "bookings"
+  | "completed_bookings"
+  | "revenue"
+  | "profit"
+  | "customers"
+  | "travelers";
+export type TargetPeriod =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "quarterly"
+  | "half_yearly"
+  | "yearly"
+  | "custom";
+export type TargetRecordStatus = "active" | "paused";
+export type TargetDisplayStatus = "in_progress" | "completed" | "expired" | "paused";
+
+export type Target = Meta & {
+  name: string;
+  metric: TargetMetric;
+  targetValue: number;
+  currency?: CurrencyCode;
+  period: TargetPeriod;
+  startDate: ISO;
+  endDate: ISO;
+  description: string;
+  status: TargetRecordStatus;
+  completedAt?: ISO | null;
+  completionNotifiedAt?: ISO | null;
+};
+
+export type TargetProgress = Target & {
+  actualValue: number | null;
+  remainingValue: number | null;
+  progressPercent: number | null;
+  displayStatus: TargetDisplayStatus;
+  celebration: boolean;
 };

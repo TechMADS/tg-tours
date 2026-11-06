@@ -11,7 +11,9 @@ function normalize(p: TravelPackage): TravelPackage {
     groupType: p.groupType ?? "open_group",
     minPersons: min,
     maxPersons: p.maxPersons ?? 0,
-    priceTiers: p.priceTiers?.length ? p.priceTiers : [{ fromPersons: min, amount: p.price.amount }],
+    priceTiers: p.priceTiers?.length
+      ? [{ ...p.priceTiers[0], fromPersons: 1 }, ...p.priceTiers.slice(1)]
+      : [{ fromPersons: 1, amount: p.price.amount }],
     rooms: p.rooms ?? (p.roomImages?.length
       ? [{ name: "Existing room photos", phone: "", photos: p.roomImages }]
       : []),

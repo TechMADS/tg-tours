@@ -94,6 +94,7 @@ export async function createCustomer(input: unknown, force = false): Promise<Res
   await batch.commit();
 
   revalidatePath("/customers");
+  revalidatePath("/");
   return { ok: true, id: ref.id };
 }
 
@@ -176,6 +177,7 @@ export async function deleteCustomer(id: string): Promise<Result> {
   await batch.commit();
 
   revalidatePath("/customers");
+  revalidatePath("/");
   return { ok: true };
 }
 
