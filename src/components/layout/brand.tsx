@@ -1,26 +1,10 @@
-import Image from "next/image";
-
-export function Brand() {
+export function Brand({ inverse = false }: { inverse?: boolean }) {
   return (
-    <div className="w-full">
-      <div className="dark:hidden">
-        <Image
-          src="/adn-logo-light.png"
-          alt="ADN Adventures"
-          width={655}
-          height={390}
-          className="h-auto w-full max-w-[184px] object-contain"
-        />
-      </div>
-      <div className="hidden dark:block">
-        <Image
-          src="/adn-logo-dark.png"
-          alt="ADN Adventures"
-          width={1318}
-          height={768}
-          className="h-auto w-full max-w-[184px] object-contain"
-        />
-      </div>
+    <div className={`w-full max-w-[184px] ${inverse ? "text-white" : "text-foreground"}`}>
+      <span className="block text-lg leading-tight font-bold">ABC Tours</span>
+      <span className={`${inverse ? "text-white/75" : "text-muted-foreground"} text-xs font-medium uppercase`}>
+        and Travels
+      </span>
     </div>
   );
 }

@@ -18,7 +18,7 @@ const schema = z.object({
 });
 type Values = z.infer<typeof schema>;
 
-export function LoginForm() {
+export function LoginForm({ businessName }: { businessName: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -61,7 +61,7 @@ export function LoginForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-5">
       <div>
         <h2 className="text-2xl font-bold">Welcome back</h2>
-        <p className="text-muted-foreground text-sm">Sign in to manage ADN Adventures</p>
+        <p className="text-muted-foreground text-sm">Sign in to manage {businessName}</p>
       </div>
 
       <div className="space-y-2">

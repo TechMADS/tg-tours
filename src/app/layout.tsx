@@ -20,8 +20,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ADN Adventures | Admin Panel",
-  description: "Your Travel Our Responsibilities",
+  title: "ABC Tours and Travels | Admin Panel",
+  description: "ABC Tours and Travels administration",
 };
 
 export const viewport: Viewport = {

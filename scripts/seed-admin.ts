@@ -2,7 +2,7 @@ import { cert, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
-const [email, password, name = "ADN Admin"] = process.argv.slice(2);
+const [email, password, name = "ABC Tours Admin"] = process.argv.slice(2);
 if (!email || !password) {
   console.error('Usage: seed-admin.ts <email> <password> ["Full Name"]');
   process.exit(1);

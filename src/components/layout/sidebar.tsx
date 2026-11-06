@@ -4,16 +4,13 @@ import { NavLinks } from "./nav-links";
 
 export function Sidebar({ user }: { user: SessionUser }) {
   return (
-    <aside className="bg-card sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border/80 md:flex">
-      <div className="border-b border-border/70 px-5 py-5">
-        <Brand />
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/15 bg-[#451024] md:flex">
+      <div className="border-b border-white/15 px-5 py-5">
+        <Brand inverse />
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-5">
-        <NavLinks user={user} />
+        <NavLinks user={user} inverse />
       </div>
-      <p className="text-muted-foreground border-t border-border/70 px-5 py-4 text-xs">
-        Your Travel Our Responsibilities
-      </p>
     </aside>
   );
 }

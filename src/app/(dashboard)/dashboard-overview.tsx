@@ -58,13 +58,13 @@ type Props = {
 };
 
 const SERIES_COLORS = {
-  revenue: "#0f766e",
-  bookingExpenses: "#e11d48",
-  companyExpenses: "#f59e0b",
-  expenses: "#9333ea",
-  profit: "#2563eb",
-  bookings: "#0f766e",
-  travelers: "#7c3aed",
+  revenue: "var(--chart-1)",
+  bookingExpenses: "var(--chart-2)",
+  companyExpenses: "var(--chart-3)",
+  expenses: "var(--chart-4)",
+  profit: "var(--chart-5)",
+  bookings: "var(--chart-1)",
+  travelers: "var(--chart-3)",
 };
 
 function MetricCard({
@@ -279,14 +279,14 @@ export function DashboardOverview({
           value={String(bookingCount)}
           detail={`${activeBookings} active · ${statuses.completed} completed`}
           icon={<CalendarDays className="size-4" />}
-          accent="bg-teal-500/10 text-teal-700 dark:text-teal-300"
+          accent="bg-primary/10 text-primary"
         />
         <MetricCard
           title="Active travellers"
           value={String(activeTravelers)}
           detail="Members in non-cancelled bookings."
           icon={<Users className="size-4" />}
-          accent="bg-violet-500/10 text-violet-700 dark:text-violet-300"
+          accent="bg-primary/10 text-primary"
         />
         {showFinancials && (
           <>
@@ -295,23 +295,25 @@ export function DashboardOverview({
               value={money(revenue[currency])}
               detail="Across all non-cancelled bookings."
               icon={<CircleDollarSign className="size-4" />}
-              accent="bg-sky-500/10 text-sky-700 dark:text-sky-300"
+              accent="bg-primary/10 text-primary"
             />
             <MetricCard
               title="All-time expenses"
               value={financialUnavailable ? "Unavailable" : money(expenses[currency])}
               detail="Booking and company expenses."
               icon={<ArrowDownRight className="size-4" />}
-              accent="bg-rose-500/10 text-rose-700 dark:text-rose-300"
+              accent="bg-primary/10 text-primary"
             />
             <MetricCard
               title="All-time profit"
               value={financialUnavailable ? "Unavailable" : money(profit[currency])}
               detail="Revenue minus total expenses."
               icon={<CircleDollarSign className="size-4" />}
-              accent={profit[currency] !== undefined && profit[currency]! < 0
-                ? "bg-rose-500/10 text-rose-700 dark:text-rose-300"
-                : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}
+              accent={
+                profit[currency] !== undefined && profit[currency]! < 0
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-primary/10 text-primary"
+              }
             />
           </>
         )}

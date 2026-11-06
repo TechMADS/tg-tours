@@ -25,5 +25,5 @@ export async function suggestInvoiceNumber(issueDate: string): Promise<string> {
     : todayIST().slice(0, 4);
   const counter = await adminDb.collection(COL.counters).doc(`invoice-${year}`).get();
   const next = ((counter.data()?.value as number | undefined) ?? 0) + 1;
-  return `ADN-${year}-${String(next).padStart(4, "0")}`;
+  return `ABC-${year}-${String(next).padStart(4, "0")}`;
 }

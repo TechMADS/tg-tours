@@ -69,13 +69,15 @@ export function InvoicePdfButton({
               ...clonedPage.querySelectorAll<HTMLElement>("*"),
             ];
             for (const element of elements) {
-              const color = element.classList.contains("text-red-600")
-                ? "#dc2626"
-                : element.classList.contains("text-slate-600")
-                  ? "#475569"
-                  : element.classList.contains("text-slate-500")
-                    ? "#64748b"
-                    : "#111827";
+              const color = element.classList.contains("text-primary")
+                ? "#681c35"
+                : element.classList.contains("text-red-600")
+                  ? "#dc2626"
+                  : element.classList.contains("text-slate-600")
+                    ? "#475569"
+                    : element.classList.contains("text-slate-500")
+                      ? "#64748b"
+                      : "#111827";
               element.style.setProperty("color", color, "important");
               element.style.setProperty(
                 "background-color",
@@ -96,9 +98,12 @@ export function InvoicePdfButton({
               element.style.setProperty("box-shadow", "none", "important");
               element.style.setProperty("text-shadow", "none", "important");
               if (element.tagName === "TH") {
+                const background = element.classList.contains("bg-primary/5")
+                  ? "#f8e9ed"
+                  : "#f8fafc";
                 element.style.setProperty(
                   "background-color",
-                  "#f8fafc",
+                  background,
                   "important",
                 );
               } else if (element.classList.contains("bg-slate-100")) {

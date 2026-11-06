@@ -23,8 +23,8 @@ export type AppSettings = z.infer<typeof settingsSchema>;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   business: {
-    name: "ADN Adventures",
-    tagline: "Your Travel Our Responsibilities",
+    name: "ABC Tours and Travels",
+    tagline: "",
     gstin: "",
     address: "",
   },

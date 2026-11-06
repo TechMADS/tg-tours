@@ -162,7 +162,7 @@ export async function createInvoice(input: unknown): Promise<Result> {
     const invoiceNo = await adminDb.runTransaction(async (tx) => {
       const counter = await tx.get(counterRef);
       const next = ((counter.data()?.value as number | undefined) ?? 0) + 1;
-      const candidate = data.invoiceNo || `ADN-${invoiceYear(data.issueDate)}-${String(next).padStart(4, "0")}`;
+      const candidate = data.invoiceNo || `ABC-${invoiceYear(data.issueDate)}-${String(next).padStart(4, "0")}`;
       const duplicate = await tx.get(invoices.where("invoiceNo", "==", candidate).where("isDeleted", "==", false));
       if (!duplicate.empty) throw new Error("An invoice with this number already exists");
 

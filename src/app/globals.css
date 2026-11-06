@@ -51,52 +51,64 @@
 :root {
   --radius: 0.75rem;
 
-  --background: hsl(36 30% 98%);
-  --foreground: hsl(24 18% 12%);
+  --background: hsl(345 24% 98%);
+  --foreground: hsl(345 24% 12%);
   --card: hsl(0 0% 100%);
-  --card-foreground: hsl(24 18% 12%);
+  --card-foreground: hsl(345 24% 12%);
   --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(24 18% 12%);
+  --popover-foreground: hsl(345 24% 12%);
 
-  --primary: hsl(41 65% 45%);
-  --primary-foreground: hsl(24 18% 10%);
-  --accent: hsl(41 45% 92%);
-  --accent-foreground: hsl(24 18% 12%);
-  --secondary: hsl(36 22% 94%);
-  --secondary-foreground: hsl(24 18% 12%);
-  --muted: hsl(36 22% 95%);
-  --muted-foreground: hsl(24 8% 42%);
+  --primary: hsl(345 58% 29%);
+  --primary-foreground: hsl(0 0% 100%);
+  --accent: hsl(345 42% 94%);
+  --accent-foreground: hsl(345 38% 20%);
+  --secondary: hsl(345 22% 95%);
+  --secondary-foreground: hsl(345 24% 16%);
+  --muted: hsl(345 20% 96%);
+  --muted-foreground: hsl(345 10% 42%);
 
   --destructive: hsl(0 84.2% 60.2%);
-  --border: hsl(36 16% 86%);
-  --input: hsl(36 16% 82%);
-  --ring: hsl(41 65% 45%);
+  --border: hsl(345 17% 87%);
+  --input: hsl(345 17% 82%);
+  --ring: hsl(345 58% 35%);
 
-  --gradient-primary: linear-gradient(135deg, #dcaf53, #e4bd67);
-  --gradient-hero: linear-gradient(135deg, #dcaf53 0%, #d18847 100%);
+  --chart-1: hsl(345 58% 29%);
+  --chart-2: hsl(337 49% 44%);
+  --chart-3: hsl(320 28% 42%);
+  --chart-4: hsl(356 44% 34%);
+  --chart-5: hsl(300 26% 36%);
+
+  --gradient-primary: linear-gradient(135deg, #681c35, #8b2944);
+  --gradient-hero: linear-gradient(135deg, #451024 0%, #84213f 100%);
 }
 
 .dark {
-  --background: hsl(24 15% 8%);
-  --foreground: hsl(41 20% 95%);
-  --card: hsl(24 12% 12%);
-  --card-foreground: hsl(41 20% 95%);
-  --popover: hsl(24 12% 12%);
-  --popover-foreground: hsl(41 20% 95%);
+  --background: hsl(345 24% 7%);
+  --foreground: hsl(345 18% 95%);
+  --card: hsl(345 22% 11%);
+  --card-foreground: hsl(345 18% 95%);
+  --popover: hsl(345 22% 11%);
+  --popover-foreground: hsl(345 18% 95%);
 
-  --primary: hsl(41 65% 59%);
-  --primary-foreground: hsl(24 15% 8%);
-  --accent: hsl(41 35% 22%);
-  --accent-foreground: hsl(41 20% 95%);
-  --secondary: hsl(24 10% 18%);
-  --secondary-foreground: hsl(41 20% 95%);
-  --muted: hsl(24 10% 18%);
-  --muted-foreground: hsl(41 15% 65%);
+  --primary: hsl(345 58% 43%);
+  --primary-foreground: hsl(0 0% 100%);
+  --accent: hsl(345 34% 20%);
+  --accent-foreground: hsl(345 24% 94%);
+  --secondary: hsl(345 18% 16%);
+  --secondary-foreground: hsl(345 18% 94%);
+  --muted: hsl(345 18% 15%);
+  --muted-foreground: hsl(345 14% 68%);
 
   --destructive: hsl(0 62.8% 50%);
-  --border: hsl(24 8% 24%);
-  --input: hsl(24 8% 30%);
-  --ring: hsl(41 65% 59%);
+  --border: hsl(345 17% 24%);
+  --input: hsl(345 17% 29%);
+  --ring: hsl(345 58% 58%);
+
+  --chart-1: hsl(345 65% 69%);
+  --chart-2: hsl(337 66% 64%);
+  --chart-3: hsl(320 44% 68%);
+  --chart-4: hsl(356 60% 65%);
+  --chart-5: hsl(300 38% 66%);
 }
 
 @utility bg-brand-gradient { background-image: var(--gradient-primary); }
@@ -141,7 +153,7 @@
   animation: target-confetti-burst 1.7s cubic-bezier(0.15, 0.65, 0.35, 1) both;
 }
 
-.target-confetti-0 { background: #d6a53c; }
+.target-confetti-0 { background: #9f3153; }
 .target-confetti-1 { background: #0f766e; }
 .target-confetti-2 { background: #5b7cfa; }
 .target-confetti-3 { background: #ec7185; }

@@ -181,7 +181,7 @@ export default async function DashboardPage() {
     <>
       <PageHeader
         title={`Welcome, ${user.name.split(" ")[0]}`}
-        description="Here's what's happening at ADN Adventures."
+        description="Here's what's happening at ABC Tours and Travels."
       />
       <DashboardOverview
         today={today}
