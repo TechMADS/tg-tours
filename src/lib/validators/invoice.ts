@@ -37,7 +37,7 @@ export const invoiceInputSchema = z.object({
   taxMode: z.enum(["exclusive", "inclusive"]),
   payments: z.array(z.object({
     paymentId: z.string().uuid().optional(),
-    amount: z.number().positive("Enter a payment amount").max(1_000_000_000),
+    amount: z.number().min(0, "Cannot be negative").max(1_000_000_000),
     date,
   })).max(20, "Add no more than 20 payments"),
   nextPaymentDue: z.object({

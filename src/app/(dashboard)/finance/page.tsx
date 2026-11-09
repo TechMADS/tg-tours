@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { requireModule } from "@/lib/auth/session";
 import { listBookings } from "@/lib/data/bookings";
 import { listExpenses } from "@/lib/data/expenses";
+import { listInvoices } from "@/lib/data/invoices";
 import { listPackages } from "@/lib/data/packages";
 import { convertMoneyEntryAmount } from "@/lib/finance/fx";
 import { getSettings } from "@/lib/settings";
@@ -10,10 +11,11 @@ import { FinanceDashboard } from "./finance-dashboard";
 
 export default async function Page() {
   await requireModule("finance");
-  const [bookings, packages, allExpenses, settings] = await Promise.all([
+  const [bookings, packages, allExpenses, invoices, settings] = await Promise.all([
     listBookings(),
     listPackages(),
     listExpenses(),
+    listInvoices(),
     getSettings(),
   ]);
   const packageById = new Map(packages.map((pkg) => [pkg.id, pkg]));
@@ -52,11 +54,20 @@ export default async function Page() {
       travelStart: booking.travelStart,
       currency: booking.currency,
       status: booking.status,
-      revenue: booking.totalAmount,
       packageCost,
       bookingExpenses,
     };
   });
+  const reportInvoices = invoices.map((invoice) => ({
+    id: invoice.id,
+    invoiceNo: invoice.invoiceNo,
+    issueDate: invoice.issueDate,
+    currency: invoice.currency,
+    status: invoice.status,
+    amountPaid: invoice.amountPaid,
+    remainingBalance: invoice.remainingBalance,
+    payments: invoice.payments.map(({ amount, date }) => ({ amount, date })),
+  }));
   const companyExpenses = allExpenses
     .filter((expense) => !expense.bookingId)
     .map((expense) => ({
@@ -71,8 +82,8 @@ export default async function Page() {
 
   return (
     <>
-      <PageHeader title="Finance" description="Review booking revenue, company expenses, booking expenses, and profit over a selected period." />
-      <FinanceDashboard bookings={reports} companyExpenses={companyExpenses} today={todayIST()} />
+      <PageHeader title="Finance" description="Review invoice payments, pending collections, expenses, and profit over a selected period." />
+      <FinanceDashboard bookings={reports} invoices={reportInvoices} companyExpenses={companyExpenses} today={todayIST()} />
     </>
   );
 }

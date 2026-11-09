@@ -45,6 +45,7 @@ type Props = {
   months: DashboardMonth[];
   currencies: CurrencyCode[];
   revenue: Partial<Record<CurrencyCode, number>>;
+  pendingCollection: Partial<Record<CurrencyCode, number>>;
   bookingExpenses: Partial<Record<CurrencyCode, number>>;
   companyExpenses: Partial<Record<CurrencyCode, number>>;
   expenses: Partial<Record<CurrencyCode, number>>;
@@ -209,6 +210,7 @@ export function DashboardOverview({
   months,
   currencies,
   revenue,
+  pendingCollection,
   expenses,
   profit,
   unavailable,
@@ -220,7 +222,9 @@ export function DashboardOverview({
 }: Props) {
   const [currency, setCurrency] = useState<CurrencyCode>(currencies[0] ?? "INR");
   const activeBookings = statuses.open + statuses.closed;
-  const hasFinancialData = Boolean(revenue[currency] || expenses[currency] || profit[currency]);
+  const hasFinancialData = Boolean(
+    revenue[currency] || pendingCollection[currency] || expenses[currency] || profit[currency],
+  );
   const financialUnavailable = Boolean(unavailable[currency]);
   const money = (value: number | undefined) => formatMoney(value ?? 0, currency);
   const statusTotal = Object.values(statuses).reduce((sum, count) => sum + count, 0);
@@ -293,7 +297,14 @@ export function DashboardOverview({
             <MetricCard
               title="All-time revenue"
               value={money(revenue[currency])}
-              detail="Across all non-cancelled bookings."
+              detail="Total paid on issued invoices."
+              icon={<CircleDollarSign className="size-4" />}
+              accent="bg-primary/10 text-primary"
+            />
+            <MetricCard
+              title="Pending collection"
+              value={money(pendingCollection[currency])}
+              detail="Remaining balances on issued invoices."
               icon={<CircleDollarSign className="size-4" />}
               accent="bg-primary/10 text-primary"
             />
@@ -324,7 +335,7 @@ export function DashboardOverview({
           <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
               <CardTitle>Revenue, expenses &amp; profit</CardTitle>
-              <CardDescription>Booking costs by travel date · company costs by expense date · last six months</CardDescription>
+              <CardDescription>Revenue by payment date · expenses by travel and expense dates · last six months</CardDescription>
             </div>
             {showFinancials && (
               <select
@@ -343,7 +354,7 @@ export function DashboardOverview({
             {showFinancials ? (
               <div className="space-y-4">
                 {!hasFinancialData && (
-                  <p className="text-muted-foreground text-xs">No booking revenue in this currency yet.</p>
+                  <p className="text-muted-foreground text-xs">No invoice payments in this currency yet.</p>
                 )}
                 {financialUnavailable && (
                   <p className="text-amber-700 text-xs dark:text-amber-300">
@@ -354,7 +365,7 @@ export function DashboardOverview({
                   labels={months.map((month) => month.label)}
                   series={financialSeries}
                   formatValue={(value) => formatMoney(Math.round(value * 100), currency)}
-                  ariaLabel={`Monthly revenue, booking expenses, company expenses, total expenses and profit in ${currency}`}
+                  ariaLabel={`Monthly invoice revenue, booking expenses, company expenses, total expenses and profit in ${currency}`}
                 />
               </div>
             ) : (
@@ -438,17 +449,19 @@ export function DashboardOverview({
           <Card>
             <CardHeader>
               <CardTitle>Financial summary</CardTitle>
-              <CardDescription>All non-cancelled bookings · grouped by currency</CardDescription>
+              <CardDescription>Invoice payments and outstanding balances · grouped by currency</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {currencies.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No booking financial data yet.</p>
+                <p className="text-muted-foreground text-sm">No invoice or expense financial data yet.</p>
               ) : currencies.map((code) => (
                 <div key={code} className="space-y-2 border-b pb-3 last:border-0 last:pb-0">
                   <p className="text-sm font-semibold">{code} · {CURRENCIES[code].name}</p>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <span className="text-muted-foreground">Revenue</span>
+                    <span className="text-muted-foreground">Revenue collected</span>
                     <strong className="text-right">{money(revenue[code])}</strong>
+                    <span className="text-muted-foreground">Pending collection</span>
+                    <strong className="text-right">{money(pendingCollection[code])}</strong>
                     <span className="text-muted-foreground">Total expenses</span>
                     <strong className="text-right">
                       {unavailable[code] ? "Unavailable" : money(expenses[code])}

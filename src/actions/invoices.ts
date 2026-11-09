@@ -48,8 +48,9 @@ function buildInvoice(
     mode: input.taxMode,
   } as const;
   const totals = calcTotals({ lineTotals: [subtotal], discount, tax });
-  const payments: InvoicePayment[] = input.payments.map((payment, index) => {
+  const payments: InvoicePayment[] = input.payments.flatMap((payment, index) => {
     const amount = toMinor(payment.amount);
+    if (amount === 0) return [];
     const previousPayment = payment.paymentId
       ? previous?.payments.find((item) => item.paymentId === payment.paymentId)
       : previous?.payments[index];
@@ -140,7 +141,7 @@ export async function createInvoice(input: unknown): Promise<Result> {
   }
   const settings = await getSettings();
   if (
-    (data.package.cost > 0 || data.payments.length > 0) && data.currency !== "INR"
+    (data.package.cost > 0 || data.payments.some((payment) => payment.amount > 0)) && data.currency !== "INR"
     && (!settings.fx.rates[data.currency] || settings.fx.rates[data.currency] <= 0)
   ) {
     return { ok: false, error: `Set an exchange rate for ${data.currency} in Settings before recording invoice payments or package costs` };
@@ -178,6 +179,8 @@ export async function createInvoice(input: unknown): Promise<Result> {
       return candidate;
     });
     revalidatePath("/invoices");
+    revalidatePath("/finance");
+    revalidatePath("/");
     return { ok: true, id: invoiceRef.id, invoiceNo };
   } catch (error) {
     if (error instanceof Error && error.message === "An invoice with this number already exists") {
@@ -212,6 +215,7 @@ export async function updateInvoice(id: string, input: unknown): Promise<Result>
   const packageCostNeedsRate = costAmount > 0
     && (previousCost?.amount !== costAmount || previousCost.currency !== parsed.data.currency);
   const paymentNeedsRate = parsed.data.payments.some((payment, index) => {
+    if (payment.amount === 0) return false;
     const previousPayment = payment.paymentId
       ? old.payments.find((item) => item.paymentId === payment.paymentId)
       : old.payments[index];
@@ -268,6 +272,8 @@ export async function updateInvoice(id: string, input: unknown): Promise<Result>
 
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${id}`);
+  revalidatePath("/finance");
+  revalidatePath("/");
   return { ok: true, id };
 }
 
@@ -322,5 +328,7 @@ export async function deleteInvoice(id: string): Promise<Result> {
   });
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${id}`);
+  revalidatePath("/finance");
+  revalidatePath("/");
   return { ok: true, id };
 }

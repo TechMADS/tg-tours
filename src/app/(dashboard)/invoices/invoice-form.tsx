@@ -348,7 +348,13 @@ export function InvoiceForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form
+      noValidate
+      onSubmit={handleSubmit(onSubmit, () => {
+        toast.error("Please correct the highlighted fields before saving the invoice.");
+      })}
+      className="space-y-5"
+    >
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
         <div className="space-y-5">
           <Card>
@@ -514,7 +520,7 @@ export function InvoiceForm({
 
           <Card>
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
-              <div><CardTitle>Payments</CardTitle><CardDescription>Record each advance or later payment with its date.</CardDescription></div>
+              <div><CardTitle>Payments</CardTitle><CardDescription>Record each advance or later payment with its date. Rows with an amount of 0 are ignored.</CardDescription></div>
               <Button type="button" variant="outline" size="sm" onClick={() => payments.append({ amount: 0, date: today })}>
                 <Plus className="mr-1 size-4" /> Add Payment
               </Button>
@@ -525,7 +531,7 @@ export function InvoiceForm({
                   <input type="hidden" {...register(`payments.${index}.paymentId`)} />
                   <div className="space-y-2">
                     <Label htmlFor={`payment-${index}`}>Advance Paid ({CURRENCIES[values.currency].symbol})</Label>
-                    <Input id={`payment-${index}`} type="number" min={0.01} step="0.01" {...register(`payments.${index}.amount`, { valueAsNumber: true })} />
+                    <Input id={`payment-${index}`} type="number" min={0} step="0.01" {...register(`payments.${index}.amount`, { valueAsNumber: true })} />
                     <ErrorText message={errors.payments?.[index]?.amount?.message} />
                   </div>
                   <div className="space-y-2">
