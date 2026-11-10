@@ -531,7 +531,15 @@ export function InvoiceForm({
                   <input type="hidden" {...register(`payments.${index}.paymentId`)} />
                   <div className="space-y-2">
                     <Label htmlFor={`payment-${index}`}>Advance Paid ({CURRENCIES[values.currency].symbol})</Label>
-                    <Input id={`payment-${index}`} type="number" min={0} step="0.01" {...register(`payments.${index}.amount`, { valueAsNumber: true })} />
+                    <Input
+                      id={`payment-${index}`}
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      {...register(`payments.${index}.amount`, {
+                        setValueAs: (value: string) => value === "" ? 0 : Number(value),
+                      })}
+                    />
                     <ErrorText message={errors.payments?.[index]?.amount?.message} />
                   </div>
                   <div className="space-y-2">

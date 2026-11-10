@@ -9,6 +9,8 @@ export default async function Page() {
   const bookings = await listBookings();
   const reportBookings = bookings.map((booking) => ({
     id: booking.id,
+    createdDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" })
+      .format(new Date(booking.createdAt)),
     bookingNo: booking.bookingNo,
     title: booking.title,
     destination: booking.destination,

@@ -15,6 +15,7 @@ import type { BookingStatus } from "@/types/models";
 
 type ReportBooking = {
   id: string;
+  createdDate: string;
   bookingNo: string;
   title: string;
   destination: string;
@@ -98,7 +99,7 @@ function MetricCard({
 }
 
 export function BookingsAnalytics({ bookings, today }: Props) {
-  const [period, setPeriod] = useState<Period>("month");
+  const [period, setPeriod] = useState<Period>("all-time");
   const [customRange, setCustomRange] = useState<DateRange>(() => periodRange("month", today)!);
   const range = period === "custom" ? customRange : periodRange(period, today);
   const validRange = period !== "custom"
@@ -112,7 +113,7 @@ export function BookingsAnalytics({ bookings, today }: Props) {
   const filtered = bookings.filter((booking) =>
     period === "all-time"
     || (validRange && range !== null
-      && booking.travelStart >= range.start && booking.travelStart <= range.end),
+      && booking.createdDate >= range.start && booking.createdDate <= range.end),
   );
   const statusCounts: Record<BookingStatus, number> = {
     open: 0,
@@ -215,7 +216,7 @@ export function BookingsAnalytics({ bookings, today }: Props) {
         <CardHeader>
           <CardTitle>Reporting period</CardTitle>
           <CardDescription>
-            Bookings are grouped by their travel start date. Revenue and active members exclude cancelled bookings.
+            Bookings are filtered by their creation date in India time. Revenue and active members exclude cancelled bookings.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -339,7 +340,7 @@ export function BookingsAnalytics({ bookings, today }: Props) {
         <Card>
           <CardHeader>
             <CardTitle>Top destinations</CardTitle>
-            <CardDescription>Ranked by number of bookings starting in this period.</CardDescription>
+            <CardDescription>Ranked by bookings created in this period.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {destinations.length === 0 ? (
@@ -364,7 +365,7 @@ export function BookingsAnalytics({ bookings, today }: Props) {
         <Card>
           <CardHeader>
             <CardTitle>Bookings in this period</CardTitle>
-            <CardDescription>View individual booking details and travel dates.</CardDescription>
+            <CardDescription>Bookings created in this period, with their travel dates.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {sortedBookings.length === 0 ? (

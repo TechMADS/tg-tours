@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { calcTotals } from "@/lib/finance/tax";
 import {
   formatMoney,
@@ -42,10 +43,10 @@ export function InvoiceDocument({
       >
         <header className="flex min-w-0 flex-col items-start gap-3 border-b border-slate-300 pb-4 text-left sm:flex-row sm:items-center sm:gap-4">
           <div className="min-w-0 break-words">
-            <p className="text-primary text-xl font-bold tracking-wide uppercase sm:text-2xl">
+            <p className="text-xl font-bold tracking-wide uppercase sm:text-2xl">
               {business.name || "ABC TOURS AND TRAVELS"}
             </p>
-            <p className="text-primary text-lg tracking-widest uppercase">
+            <p className="text-lg tracking-widest uppercase">
               Tours &amp; Travels
             </p>
             {business.tagline && (
@@ -90,9 +91,7 @@ export function InvoiceDocument({
         </div>
 
         <section className="border-b border-slate-300 py-3 text-sm">
-          <h2 className="text-primary mb-2 text-base font-bold">
-            Client Details
-          </h2>
+          <h2 className="mb-2 text-base font-bold">Client Details</h2>
           <p>
             <strong>Name:</strong> {values.customer.name || "—"}
           </p>
@@ -105,9 +104,7 @@ export function InvoiceDocument({
         </section>
 
         <section className="border-b border-slate-300 py-3 text-sm">
-          <h2 className="text-primary mb-2 text-base font-bold">
-            Package Details
-          </h2>
+          <h2 className="mb-2 text-base font-bold">Package Details</h2>
           <table className="w-full border-collapse">
             <tbody>
               <InvoiceRow
@@ -158,7 +155,7 @@ export function InvoiceDocument({
           </table>
           {values.payments.length > 0 && (
             <div className="mt-3">
-              <h3 className="text-primary mb-1 font-bold">Payment History</h3>
+              <h3 className="mb-1 font-bold">Payment History</h3>
               <ul className="space-y-1">
                 {values.payments.map((payment, index) => (
                   <li
@@ -201,10 +198,17 @@ export function InvoiceDocument({
         </section>
 
         <footer className="pt-8 text-right">
-          <div
-            aria-hidden="true"
-            className="mb-1 ml-auto h-[82px] w-56 border-b border-slate-400"
-          />
+          <div className="mb-1 ml-auto flex h-[82px] w-56 items-end justify-center border-b border-slate-400 bg-transparent">
+            <Image
+              src="/adn-signature.png"
+              alt="Authorized signature"
+              width={240}
+              height={69}
+              unoptimized
+              className="h-[69px] w-[240px] bg-transparent object-contain"
+              priority
+            />
+          </div>
           <p className="text-sm font-bold">Authorized Signature</p>
           <p className="mt-6 text-center font-bold">
             Thank You &amp; Have a Great Journey Ahead!
@@ -226,11 +230,11 @@ function InvoiceRow({
 }) {
   return (
     <tr>
-      <th className="text-primary w-2/3 break-words border border-slate-300 bg-primary/5 px-3 py-2 text-left font-bold">
+      <th className="w-2/3 break-words border border-slate-300 bg-slate-50 px-3 py-2 text-left font-bold">
         {label}
       </th>
       <td
-        className={`break-words border border-slate-300 px-3 py-2 ${emphasis ? "text-primary font-bold" : ""}`}
+        className={`break-words border border-slate-300 px-3 py-2 ${emphasis ? "font-bold text-red-600" : ""}`}
       >
         {value}
       </td>
@@ -243,7 +247,7 @@ function TermsSection({ title, value }: { title: string; value: string }) {
   const lines = value.split(/\r?\n/).filter((line) => line.trim());
   return (
     <div>
-      <h3 className="text-primary font-bold">{title}</h3>
+      <h3 className="font-bold">{title}</h3>
       <div className="space-y-0.5">
         {lines.map((line, index) => {
           const bullet = line.match(/^\s*[-•]\s+(.*)$/);

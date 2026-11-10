@@ -77,6 +77,14 @@ export default async function DashboardPage() {
   const statuses = { open: 0, closed: 0, completed: 0, cancelled: 0 };
   let activeTravelers = 0;
 
+  const reportableInvoices = invoices.filter((invoice) =>
+    invoice.status !== "cancelled" && invoice.status !== "draft",
+  );
+  for (const invoice of reportableInvoices) {
+    pendingCollection[invoice.currency] =
+      (pendingCollection[invoice.currency] ?? 0) + invoice.remainingBalance;
+  }
+
   for (const expense of expenses) {
     if (expense.bookingId) continue;
     const currency = expense.money.currency;
@@ -91,6 +99,9 @@ export default async function DashboardPage() {
 
   for (const booking of bookings) {
     statuses[booking.status]++;
+    const monthKey = booking.travelStart.slice(0, 7);
+    const month = monthKeys.has(monthKey) ? monthByKey.get(monthKey)! : null;
+    if (month) month.bookings++;
     if (booking.status === "cancelled") continue;
     activeTravelers += booking.memberCount;
 
@@ -112,73 +123,44 @@ export default async function DashboardPage() {
     const totalExpenses = packageCost === null || bookingExpenses === null
       ? null
       : packageCost + bookingExpenses;
+    revenue[booking.currency] = (revenue[booking.currency] ?? 0) + booking.totalAmount;
     if (totalExpenses !== null) {
       bookingExpenseTotals[booking.currency] =
         (bookingExpenseTotals[booking.currency] ?? 0) + totalExpenses;
-      cost[booking.currency] = (cost[booking.currency] ?? 0) + totalExpenses;
     }
     if (totalExpenses === null) {
       unavailable[booking.currency] = true;
+    } else {
+      cost[booking.currency] = (cost[booking.currency] ?? 0) + totalExpenses;
+      profit[booking.currency] =
+        (profit[booking.currency] ?? 0)
+        + booking.totalAmount - totalExpenses;
     }
 
-    const monthKey = booking.travelStart.slice(0, 7);
-    if (!monthKeys.has(monthKey)) continue;
-    const month = monthByKey.get(monthKey)!;
-    month.bookings++;
+    if (!month) continue;
     month.travelers += booking.memberCount;
+    month.revenue[booking.currency] = (month.revenue[booking.currency] ?? 0) + booking.totalAmount;
     if (totalExpenses !== null) {
       month.bookingExpenses[booking.currency] =
         (month.bookingExpenses[booking.currency] ?? 0) + totalExpenses;
-      month.expenses[booking.currency] =
-        (month.expenses[booking.currency] ?? 0) + totalExpenses;
     }
     if (totalExpenses === null) {
       month.unavailable[booking.currency] = true;
-    }
-  }
-
-  const reportableInvoices = invoices.filter((invoice) =>
-    invoice.status !== "cancelled" && invoice.status !== "draft",
-  );
-  for (const invoice of reportableInvoices) {
-    revenue[invoice.currency] = (revenue[invoice.currency] ?? 0) + invoice.amountPaid;
-    pendingCollection[invoice.currency] =
-      (pendingCollection[invoice.currency] ?? 0) + invoice.remainingBalance;
-
-    for (const payment of invoice.payments) {
-      const month = monthByKey.get(payment.date.slice(0, 7));
-      if (month) {
-        month.revenue[invoice.currency] =
-          (month.revenue[invoice.currency] ?? 0) + payment.amount;
-      }
+    } else {
+      month.expenses[booking.currency] = (month.expenses[booking.currency] ?? 0) + totalExpenses;
+      month.profit[booking.currency] =
+        (month.profit[booking.currency] ?? 0) + booking.totalAmount - totalExpenses;
     }
   }
 
   for (const month of monthly) {
-    const monthCurrencies = new Set([
-      ...Object.keys(month.revenue) as CurrencyCode[],
-      ...Object.keys(month.expenses) as CurrencyCode[],
-      ...Object.keys(month.unavailable) as CurrencyCode[],
-    ]);
-    for (const currency of monthCurrencies) {
-      if (!month.unavailable[currency]) {
-        month.profit[currency] =
-          (month.revenue[currency] ?? 0) - (month.expenses[currency] ?? 0);
-      }
+    for (const currency of Object.keys(month.companyExpenses) as CurrencyCode[]) {
+      month.profit[currency] = (month.profit[currency] ?? 0) - (month.companyExpenses[currency] ?? 0);
     }
   }
-
-  const financialCurrencies = new Set([
-    ...Object.keys(revenue) as CurrencyCode[],
-    ...Object.keys(pendingCollection) as CurrencyCode[],
-    ...Object.keys(cost) as CurrencyCode[],
-    ...Object.keys(companyExpenseTotals) as CurrencyCode[],
-  ]);
-  for (const currency of financialCurrencies) {
+  for (const currency of Object.keys(companyExpenseTotals) as CurrencyCode[]) {
+    profit[currency] = (profit[currency] ?? 0) - (companyExpenseTotals[currency] ?? 0);
     cost[currency] = (cost[currency] ?? 0) + (companyExpenseTotals[currency] ?? 0);
-    if (!unavailable[currency]) {
-      profit[currency] = (revenue[currency] ?? 0) - cost[currency]!;
-    }
   }
 
   const upcoming = bookings
@@ -219,17 +201,17 @@ export default async function DashboardPage() {
         months={monthly}
         currencies={currencies}
         revenue={revenue}
-        pendingCollection={pendingCollection}
         bookingExpenses={bookingExpenseTotals}
         companyExpenses={companyExpenseTotals}
         expenses={cost}
         profit={profit}
         unavailable={unavailable}
-        bookingCount={bookings.filter((booking) => booking.status !== "cancelled").length}
+        bookingCount={bookings.length}
         activeTravelers={activeTravelers}
         statuses={statuses}
         upcoming={upcoming}
-        showFinancials={user.role === "admin" || user.role === "manager"}
+        pendingCollection={pendingCollection}
+        showFinancials={canViewFinancials}
       />
       {(user.role === "admin" || user.role === "manager") && (
         <div className="mt-8">

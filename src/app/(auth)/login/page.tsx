@@ -13,7 +13,7 @@ export default async function LoginPage() {
         <p>ABC Tours</p>
         <p>and Travels</p>
       </div>
-      <div className="bg-hero-gradient hidden flex-col justify-between p-10 text-white lg:flex">
+      <div className="bg-hero-gradient hidden flex-col justify-between p-10 text-[#1C1917] lg:flex">
         <span className="text-sm font-semibold tracking-widest uppercase">Admin Panel</span>
         <div>
           <h1 className="text-5xl font-bold tracking-tight">{businessName}</h1>

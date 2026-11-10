@@ -281,7 +281,7 @@ export function DashboardOverview({
         <MetricCard
           title="Bookings"
           value={String(bookingCount)}
-          detail={`${activeBookings} active · ${statuses.completed} completed`}
+          detail={`${activeBookings} active · ${statuses.completed} completed · ${statuses.cancelled} cancelled`}
           icon={<CalendarDays className="size-4" />}
           accent="bg-primary/10 text-primary"
         />
