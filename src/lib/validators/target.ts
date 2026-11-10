@@ -14,7 +14,11 @@ export const targetInputSchema = z.object({
   metric: z.enum([
     "bookings", "completed_bookings", "revenue", "profit", "customers", "travelers",
   ]),
-  targetValue: z.number().finite().positive("Target must be greater than zero").max(1_000_000_000),
+  targetValue: z.number()
+    .finite()
+    .int("Target value must be a whole number")
+    .positive("Target must be greater than zero")
+    .max(1_000_000_000),
   currency: z.enum(CURRENCY_CODES).optional(),
   period: z.enum([
     "daily", "weekly", "monthly", "quarterly", "half_yearly", "yearly", "custom",
@@ -36,13 +40,6 @@ export const targetInputSchema = z.object({
       code: "custom",
       path: ["currency"],
       message: "Currency is only used for revenue and profit targets",
-    });
-  }
-  if (!isFinancial && !Number.isInteger(target.targetValue)) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["targetValue"],
-      message: "Booking, customer, and traveler targets must be whole numbers",
     });
   }
   if (target.period === "custom" && !target.customEndDate) {

@@ -603,8 +603,8 @@ export function TargetsPanel({ targets, today, management = false }: Props) {
                   id="target-value"
                   required
                   type="number"
-                  min="0.01"
-                  step={isMoney(form.metric) ? "0.01" : "1"}
+                  min="1"
+                  step="1"
                   value={form.targetValue}
                   onChange={(event) => updateForm("targetValue", event.target.value)}
                   placeholder={isMoney(form.metric) ? "500000" : "100"}
